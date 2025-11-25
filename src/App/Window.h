@@ -12,6 +12,8 @@
 #include <functional>
 #include <memory>
 
+#include "FpvCamera.h"
+
 class Window final : public fgl::GLWidget
 {
 	Q_OBJECT
@@ -54,12 +56,26 @@ private:
 	QOpenGLBuffer ibo_{QOpenGLBuffer::Type::IndexBuffer};
 	QOpenGLVertexArrayObject vao_;
 
+	QOpenGLVertexArrayObject lightVao_;
+
+
 	QMatrix4x4 model_;
+	QMatrix4x4 rotary_;
 	QMatrix4x4 view_;
 	QMatrix4x4 projection_;
 
-	std::unique_ptr<QOpenGLTexture> texture_;
 	std::unique_ptr<QOpenGLShaderProgram> program_;
+
+	FpvCamera camera_;
+private:
+	void captureMouse();
+	void releaseMouse();
+	void mousePressEvent(QMouseEvent * event) override;
+	void keyPressEvent(QKeyEvent * event) override;
+
+	QPointF previousMousePos_ = {0, 0};
+	void mouseMoveEvent(QMouseEvent * event) override;
+private:
 
 	QElapsedTimer timer_;
 	size_t frameCount_ = 0;

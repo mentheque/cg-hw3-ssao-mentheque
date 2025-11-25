@@ -1,12 +1,8 @@
 <RCC>
     <qresource prefix="/">
         <file>Models/chess.glb</file>
-    </qresource>
-    <qresource prefix="/">
         <file>Textures/voronoi.png</file>
-    </qresource>
-    <qresource prefix="/">
-        <file>Shaders/diffuse.fs</file>
-        <file>Shaders/diffuse.vs</file>
+        <file>Shaders/diffuse.frag</file>
+        <file>Shaders/diffuse.vert</file>
     </qresource>
 </RCC>

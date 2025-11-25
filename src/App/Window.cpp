@@ -8,6 +8,8 @@
 #include <QScreen>
 
 #include <array>
+#include <algorithm>
+#include <cmath>
 
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
@@ -18,12 +20,37 @@
 namespace
 {
 
-constexpr std::array<GLfloat, 21u> vertices = {
-	0.0f, 0.707f, 1.f, 0.f, 0.f, 0.0f, 0.0f,
-	-0.5f, -0.5f, 0.f, 1.f, 0.f, 0.5f, 1.0f,
-	0.5f, -0.5f, 0.f, 0.f, 1.f, 1.0f, 0.0f,
+constexpr std::array<GLfloat, 48u> cubeVecrticies = {
+	0.5, 0.5, 0.5, 1.0, 0.0, 0.0,
+	0.5, -0.5, 0.5, 0.0, 1.0, 0.0,
+	-0.5, -0.5, 0.5, 1.0, 1.0, 0.0,
+	-0.5, 0.5, 0.5, 0.0, 0.0, 1.0,
+	0.5, 0.5, -0.5, 1.0, 0.0, 1.0,
+	0.5, -0.5, -0.5, 0.0, 1.0, 1.0,
+	-0.5, -0.5, -0.5, 1.0, 1.0, 1.0,
+	-0.5, 0.5, -0.5, 0.1, 0.1, 0.1,
 };
-constexpr std::array<GLuint, 3u> indices = {0, 1, 2};
+constexpr std::array<GLuint, 36u> cubeIndices = {
+	2, 1, 0,
+	3, 2, 0,
+	5, 6, 4,
+	6, 7, 4,
+	0, 1, 5,
+	0, 5, 4,
+	3, 0, 4,
+	3, 4, 7,
+	6, 3, 7,
+	2, 3, 6,
+	1, 2, 5,
+	2, 6, 5};
+
+constexpr std::array<GLfloat, 30u> modelTransfroms = {
+	0.0, 0.0, 0.0, 30.0, 50.0, 0.0,
+	3.0, 4.5, -10.0, 180.0, 60.0, 0.0,
+	-5.0, 6.0, -15.5, 90.0, 90.0, 90.0,
+	3.3, 3.0, -5.3, 180.0, 0.0, 0.0,
+	-2.3, 0.0, -4.1, 0.0, 0.0, 180.0
+};
 
 }// namespace
 
@@ -35,9 +62,12 @@ Window::Window() noexcept
 
 	auto fps = new QLabel(formatFPS(0), this);
 	fps->setStyleSheet("QLabel { color : white; }");
+	fps->setAttribute(Qt::WA_TransparentForMouseEvents);
+	fps->setMouseTracking(true);
 
-	auto layout = new QVBoxLayout();
+	auto layout = new QVBoxLayout(this);
 	layout->addWidget(fps, 1);
+
 
 	setLayout(layout);
 
@@ -46,6 +76,8 @@ Window::Window() noexcept
 	connect(this, &Window::updateUI, [=] {
 		fps->setText(formatFPS(ui_.fps));
 	});
+
+	setFocusPolicy(Qt::StrongFocus);
 }
 
 Window::~Window()
@@ -53,7 +85,6 @@ Window::~Window()
 	{
 		// Free resources with context bounded.
 		const auto guard = bindContext();
-		texture_.reset();
 		program_.reset();
 	}
 }
@@ -62,9 +93,9 @@ void Window::onInit()
 {
 	// Configure shaders
 	program_ = std::make_unique<QOpenGLShaderProgram>(this);
-	program_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/diffuse.vs");
+	program_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/diffuse.vert");
 	program_->addShaderFromSourceFile(QOpenGLShader::Fragment,
-									  ":/Shaders/diffuse.fs");
+									  ":/Shaders/diffuse.frag");
 	program_->link();
 
 	// Create VAO object
@@ -75,31 +106,23 @@ void Window::onInit()
 	vbo_.create();
 	vbo_.bind();
 	vbo_.setUsagePattern(QOpenGLBuffer::StaticDraw);
-	vbo_.allocate(vertices.data(), static_cast<int>(vertices.size() * sizeof(GLfloat)));
+	vbo_.allocate(cubeVecrticies.data(), static_cast<int>(cubeVecrticies.size() * sizeof(GLfloat)));
 
 	// Create IBO
 	ibo_.create();
 	ibo_.bind();
 	ibo_.setUsagePattern(QOpenGLBuffer::StaticDraw);
-	ibo_.allocate(indices.data(), static_cast<int>(indices.size() * sizeof(GLuint)));
-
-	texture_ = std::make_unique<QOpenGLTexture>(QImage(":/Textures/voronoi.png"));
-	texture_->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
-	texture_->setWrapMode(QOpenGLTexture::WrapMode::Repeat);
+	ibo_.allocate(cubeIndices.data(), static_cast<int>(cubeIndices.size() * sizeof(GLuint)));
 
 	// Bind attributes
 	program_->bind();
 
 	program_->enableAttributeArray(0);
-	program_->setAttributeBuffer(0, GL_FLOAT, 0, 2, static_cast<int>(7 * sizeof(GLfloat)));
+	program_->setAttributeBuffer(0, GL_FLOAT, 0, 3, static_cast<int>(6 * sizeof(GLfloat)));
 
 	program_->enableAttributeArray(1);
-	program_->setAttributeBuffer(1, GL_FLOAT, static_cast<int>(2 * sizeof(GLfloat)), 3,
-								 static_cast<int>(7 * sizeof(GLfloat)));
-
-	program_->enableAttributeArray(2);
-	program_->setAttributeBuffer(2, GL_FLOAT, static_cast<int>(5 * sizeof(GLfloat)), 2,
-								 static_cast<int>(7 * sizeof(GLfloat)));
+	program_->setAttributeBuffer(1, GL_FLOAT, static_cast<int>(3 * sizeof(GLfloat)), 3,
+								 static_cast<int>(6 * sizeof(GLfloat)));
 
 	mvpUniform_ = program_->uniformLocation("mvp");
 
@@ -117,6 +140,11 @@ void Window::onInit()
 
 	// Clear all FBO buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	model_.setToIdentity();
+	rotary_.setToIdentity();
+
+	camera_.move(0, -3.0);
 }
 
 void Window::onRender()
@@ -126,28 +154,32 @@ void Window::onRender()
 	// Clear buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// Calculate MVP matrix
+	//model_.rotate(5.0f, 1.0, 1.0, 0.2);
 	model_.setToIdentity();
-	model_.translate(0, 0, -2);
-	view_.setToIdentity();
-	const auto mvp = projection_ * view_ * model_;
 
 	// Bind VAO and shader program
 	program_->bind();
 	vao_.bind();
 
-	// Update uniform value
-	program_->setUniformValue(mvpUniform_, mvp);
+	camera_.move(0, 0.1f);
+	rotary_.rotate(5.0f, 1.0, 1.0, 0.2);
+	for (size_t i = 0; i < modelTransfroms.size() / 6; i++)
+	{
+		model_.setToIdentity();
+		model_.translate(modelTransfroms[i * 6], modelTransfroms[i * 6 + 1], modelTransfroms[i * 6 + 2]);
+		model_.rotate(modelTransfroms[i * 6 + 3],
+					  modelTransfroms[i * 6 + 3] / modelTransfroms[i * 6 + 3],
+					  modelTransfroms[i * 6 + 4] / modelTransfroms[i * 6 + 3],
+					  modelTransfroms[i * 6 + 5] / modelTransfroms[i * 6 + 3]);
 
-	// Activate texture unit and bind texture
-	glActiveTexture(GL_TEXTURE0);
-	texture_->bind();
+		const auto mvp = camera_.getPerspective() * camera_.getView() * model_ * rotary_;
+		program_->setUniformValue(mvpUniform_, mvp);
 
-	// Draw
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
+		// Draw
+		glDrawElements(GL_TRIANGLES, cubeIndices.size(), GL_UNSIGNED_INT, nullptr);
+	}
 
 	// Release VAO and shader program
-	texture_->release();
 	vao_.release();
 	program_->release();
 
@@ -172,6 +204,7 @@ void Window::onResize(const size_t width, const size_t height)
 	const auto fov = 60.0f;
 	projection_.setToIdentity();
 	projection_.perspective(fov, aspect, zNear, zFar);
+	camera_.setPerspective(fov, aspect, zNear, zFar);
 }
 
 Window::PerfomanceMetricsGuard::PerfomanceMetricsGuard(std::function<void()> callback)
@@ -200,4 +233,55 @@ auto Window::captureMetrics() -> PerfomanceMetricsGuard
 			}
 		}
 	};
+}
+
+void Window::captureMouse()
+{
+	setCursor(Qt::BlankCursor);
+	QCursor::setPos(mapToGlobal(QPoint(width() / 2, height() / 2)));
+	setMouseTracking(true);
+}
+
+void Window::releaseMouse()
+{
+	setMouseTracking(false);
+	unsetCursor();
+}
+
+void Window::mousePressEvent(QMouseEvent * event)
+{
+
+	switch (event->button())
+	{
+		case Qt::LeftButton:
+			captureMouse();
+			break;
+		case Qt::RightButton:
+			releaseMouse();
+			break;
+	}
+}
+
+void Window::keyPressEvent(QKeyEvent * event)
+{
+	if (event->key() == Qt::Key_Escape)
+	{
+		releaseMouse();
+	}
+}
+
+void Window::mouseMoveEvent(QMouseEvent * event)
+{
+	const QPointF center = 
+	{static_cast<float>(width() / 2), static_cast<float>(height() / 2)};
+
+
+	QPointF diff = center - event->pos();
+	diff *= 0.01;
+
+	camera_.rotate(diff.ry(), diff.rx());
+
+	previousMousePos_ = event->pos();
+	event->accept();
+	QCursor::setPos(mapToGlobal(QPoint(width() / 2, height() / 2)));
 }
