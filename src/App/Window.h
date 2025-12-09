@@ -11,8 +11,11 @@
 
 #include <functional>
 #include <memory>
+#include <unordered_map>
 
 #include "FpvCamera.h"
+#include "KeyPressContainer.h"
+#include "Model.h"
 
 class Window final : public fgl::GLWidget
 {
@@ -73,8 +76,16 @@ private:
 	void mousePressEvent(QMouseEvent * event) override;
 	void keyPressEvent(QKeyEvent * event) override;
 
-	QPointF previousMousePos_ = {0, 0};
 	void mouseMoveEvent(QMouseEvent * event) override;
+	
+	std::unordered_map<int, KeyPressContainer> holdKeys_;
+	void keyReleaseEvent(QKeyEvent * event) override;
+
+private:
+	Model chess_;
+	Instance chessInstance_;
+	std::shared_ptr<QOpenGLShaderProgram> chessProgram_;
+
 private:
 
 	QElapsedTimer timer_;

@@ -2,15 +2,16 @@
 #include <algorithm>
 
 FpvCamera::FpvCamera() {
-	perspective_.perspective(60.0, 1.0, 0.1, 100);
+	projection_.perspective(60.0, 1.0, 0.1, 100);
 }
 
 void FpvCamera::setPerspective(float fov, float aspect, float near, float far){
-	perspective_.setToIdentity();
-	perspective_.perspective(fov, aspect, near, far);
+	projection_.setToIdentity();
+	projection_.perspective(fov, aspect, near, far);
+	updatePv_ = true;
 }
 
-QVector3D FpvCamera::directionVector()
+const QVector3D & FpvCamera::directionVector()
 {
 	if (updateDirection_)
 	{
@@ -21,7 +22,7 @@ QVector3D FpvCamera::directionVector()
 	return directionVector_;
 }
 
-QVector3D FpvCamera::rightVector() {
+const QVector3D & FpvCamera::rightVector() {
 	if (updateRight_)
 	{
 		rightVector_ = QVector3D::crossProduct(directionVector(), up_).normalized();
@@ -32,23 +33,28 @@ QVector3D FpvCamera::rightVector() {
 
 void FpvCamera::move(float right, float forward)
 {
-	cameraPos_ += right * rightVector() + forward * directionVector();
-	updateView_ = true;
+	if (right != 0 || forward != 0)
+	{
+		cameraPos_ += right * rightVector() + forward * directionVector();
+		updateView_ = updatePv_ = true;
+	}
 }
 
-void FpvCamera::rotate(float pitch, float yaw) {
+void FpvCamera::rotate(float pitch, float yaw)
+{
 	pitch_ = std::clamp(pitch_ + pitch, -1.55f, 1.55f);
 	yaw_ = fmod(yaw_ - yaw, 6.28319f);
-	updateView_ = true;
+	updateView_ = updatePv_ = true;
 	updateDirection_ = updateRight_ = true;
 }
 
-QMatrix4x4 FpvCamera::getPerspective() {
-	return perspective_;
+const QMatrix4x4 & FpvCamera::getProjection()
+{
+	return projection_;
 }
 
 
-QMatrix4x4 FpvCamera::getView()
+const QMatrix4x4 & FpvCamera::getView()
 {
 	if (updateView_)
 	{
@@ -57,4 +63,13 @@ QMatrix4x4 FpvCamera::getView()
 		updateView_ = false;
 	}
 	return view_;
+}
+
+const QMatrix4x4& FpvCamera::getProjectionView() {
+	if (updatePv_)
+	{
+		projectionView_ = getProjection() * getView();
+		updatePv_ = false;
+	}
+	return projectionView_;
 }

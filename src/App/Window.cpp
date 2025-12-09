@@ -10,6 +10,7 @@
 #include <array>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
@@ -78,6 +79,11 @@ Window::Window() noexcept
 	});
 
 	setFocusPolicy(Qt::StrongFocus);
+
+	holdKeys_.insert({Qt::Key_W, KeyPressContainer(Qt::Key_W)});
+	holdKeys_.insert({Qt::Key_S, KeyPressContainer(Qt::Key_S)});
+	holdKeys_.insert({Qt::Key_A, KeyPressContainer(Qt::Key_A)});
+	holdKeys_.insert({Qt::Key_D, KeyPressContainer(Qt::Key_D)});
 }
 
 Window::~Window()
@@ -91,6 +97,18 @@ Window::~Window()
 
 void Window::onInit()
 {
+	chessProgram_ = std::make_shared<QOpenGLShaderProgram>();
+	chessProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/model.vert");
+	chessProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment,
+											":/Shaders/model.frag");
+
+	chess_.setShaderProgram(chessProgram_);
+	chess_.loadFromGLTF(":/Models/chess_2.glb");
+
+	chessInstance_.transform_.setToIdentity();
+	chessInstance_.transform_.translate(1, 1, 1);
+	chessInstance_.transform_.scale(5.0);
+
 	// Configure shaders
 	program_ = std::make_unique<QOpenGLShaderProgram>(this);
 	program_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/diffuse.vert");
@@ -161,7 +179,39 @@ void Window::onRender()
 	program_->bind();
 	vao_.bind();
 
-	camera_.move(0, 0.1f);
+	{
+		float speed = 0.01f;
+		qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+
+		KeyPressContainer & kW = holdKeys_.at(Qt::Key_W);
+		KeyPressContainer & kS = holdKeys_.at(Qt::Key_S);
+		KeyPressContainer & kA = holdKeys_.at(Qt::Key_A);
+		KeyPressContainer & kD = holdKeys_.at(Qt::Key_D);
+
+		float moveRight = 0;
+		float moveForward = 0;
+
+		if (kW.isHeld() && kS.isHeld()) {
+			kW.touch(currentTime);
+			kS.touch(currentTime);
+		}
+		else {
+			moveForward = speed * static_cast<float>(kW.touch(currentTime) - kS.touch(currentTime));
+		}
+
+		if (kA.isHeld() && kD.isHeld())
+		{
+			kA.touch(currentTime);
+			kD.touch(currentTime);
+		}
+		else
+		{
+			moveRight = speed * static_cast<float>(kD.touch(currentTime) - kA.touch(currentTime));
+		}
+
+		camera_.move(moveRight, moveForward);
+	}
+	
 	rotary_.rotate(5.0f, 1.0, 1.0, 0.2);
 	for (size_t i = 0; i < modelTransfroms.size() / 6; i++)
 	{
@@ -172,7 +222,7 @@ void Window::onRender()
 					  modelTransfroms[i * 6 + 4] / modelTransfroms[i * 6 + 3],
 					  modelTransfroms[i * 6 + 5] / modelTransfroms[i * 6 + 3]);
 
-		const auto mvp = camera_.getPerspective() * camera_.getView() * model_ * rotary_;
+		const auto mvp = camera_.getProjection() * camera_.getView() * model_ * rotary_;
 		program_->setUniformValue(mvpUniform_, mvp);
 
 		// Draw
@@ -182,6 +232,8 @@ void Window::onRender()
 	// Release VAO and shader program
 	vao_.release();
 	program_->release();
+
+	chess_.render(camera_, {&chessInstance_});
 
 	++frameCount_;
 
@@ -268,6 +320,20 @@ void Window::keyPressEvent(QKeyEvent * event)
 	{
 		releaseMouse();
 	}
+
+	if (holdKeys_.contains(event->key())) {
+		holdKeys_.at(event->key()).pressed(QDateTime::currentMSecsSinceEpoch());
+	}
+	event->accept();
+}
+
+void Window::keyReleaseEvent(QKeyEvent * event)
+{
+	if (holdKeys_.contains(event->key()))
+	{
+		holdKeys_.at(event->key()).released(QDateTime::currentMSecsSinceEpoch());
+	}
+	event->accept();
 }
 
 void Window::mouseMoveEvent(QMouseEvent * event)
@@ -281,7 +347,6 @@ void Window::mouseMoveEvent(QMouseEvent * event)
 
 	camera_.rotate(diff.ry(), diff.rx());
 
-	previousMousePos_ = event->pos();
 	event->accept();
 	QCursor::setPos(mapToGlobal(QPoint(width() / 2, height() / 2)));
 }

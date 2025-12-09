@@ -6,8 +6,9 @@ class FpvCamera
 public:
 	FpvCamera();
 
-	QMatrix4x4 getView();
-	QMatrix4x4 getPerspective();
+	const QMatrix4x4 & getView();
+	const QMatrix4x4 & getProjection();
+	const QMatrix4x4 & getProjectionView();
 
 	void setPerspective(float fov, float aspect, float near, float far);
 
@@ -15,8 +16,8 @@ public:
 	void rotate(float pitch, float yaw);
 
 private:
-	QVector3D directionVector();
-	QVector3D rightVector();
+	const QVector3D & directionVector();
+	const QVector3D & rightVector();
 
 	QVector3D directionVector_;
 	QVector3D rightVector_;
@@ -28,9 +29,12 @@ private:
 	float pitch_ = 0;
 	float yaw_ = -1.5708;
 
-	QMatrix4x4 perspective_;
+	QMatrix4x4 projection_;
 	QMatrix4x4 view_;
 	bool updateView_ = true;
+
+	QMatrix4x4 projectionView_;
+	bool updatePv_ = true;
 	
 	const QVector3D up_ = {0.0, 1.0, 0.0};
 };

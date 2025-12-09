@@ -1,8 +1,16 @@
 <RCC>
     <qresource prefix="/">
-        <file>Models/chess.glb</file>
         <file>Textures/voronoi.png</file>
         <file>Shaders/diffuse.frag</file>
         <file>Shaders/diffuse.vert</file>
+        <file>Shaders/model.frag</file>
+        <file>Shaders/model.vert</file>
+        <file>Models/Box.glb</file>
+        <file>Models/BoxInterleaved.glb</file>
+        <file>Models/BoxTextured.glb</file>
+        <file>Models/Duck.glb</file>
+        <file>Models/DamagedHelmet.glb</file>
+        <file>Models/normal_map_test.glb</file>
+        <file>Models/chess_2.glb</file>
     </qresource>
 </RCC>
