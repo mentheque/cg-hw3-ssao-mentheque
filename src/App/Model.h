@@ -17,8 +17,8 @@
 struct Vertex {
 	float position[3];
 	float normal[3];
-	float tangent[4];
 	float texCoord[2];
+	float tangent[4];
 };
 
 struct Primitive {
@@ -49,8 +49,10 @@ class Model
 public:
 	Model();
 	void setShaderProgram(std::shared_ptr<QOpenGLShaderProgram> program);
-	bool loadFromGLTF(const QString & filePath);
 
+	void initaliseTexture(const size_t textureIdx,
+						  QOpenGLTexture::TextureFormat format, const tinygltf::Model & model);
+	bool loadFromGLTF(const QString & filePath);
 private:
 	QMatrix4x4 transform_;
 
@@ -98,9 +100,10 @@ private:
 			const tinygltf::Buffer & buffer,
 			const tinygltf::BufferView & bufferView,
 			const tinygltf::Accessor & accessor)
-			: BufferReader(&buffer.data[bufferView.byteOffset + accessor.byteOffset],
+			: BufferReader(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset,
 				accessor.ByteStride(bufferView)) 
-		{}
+		{
+		}
 
 		BufferReader(const unsigned char * data, int byteStride)
 			:

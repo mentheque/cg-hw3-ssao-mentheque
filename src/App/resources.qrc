@@ -5,12 +5,11 @@
         <file>Shaders/diffuse.vert</file>
         <file>Shaders/model.frag</file>
         <file>Shaders/model.vert</file>
-        <file>Models/Box.glb</file>
         <file>Models/BoxInterleaved.glb</file>
         <file>Models/BoxTextured.glb</file>
         <file>Models/Duck.glb</file>
         <file>Models/DamagedHelmet.glb</file>
-        <file>Models/normal_map_test.glb</file>
         <file>Models/chess_2.glb</file>
+        <file>Models/Box.glb</file>
     </qresource>
 </RCC>

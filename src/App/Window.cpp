@@ -46,7 +46,7 @@ constexpr std::array<GLuint, 36u> cubeIndices = {
 	2, 6, 5};
 
 constexpr std::array<GLfloat, 30u> modelTransfroms = {
-	0.0, 0.0, 0.0, 30.0, 50.0, 0.0,
+	2.0, 2.0, 2.0, 30.0, 50.0, 0.0,
 	3.0, 4.5, -10.0, 180.0, 60.0, 0.0,
 	-5.0, 6.0, -15.5, 90.0, 90.0, 90.0,
 	3.3, 3.0, -5.3, 180.0, 0.0, 0.0,
@@ -97,17 +97,38 @@ Window::~Window()
 
 void Window::onInit()
 {
+	qDebug() << sizeof(DirectionalLight) << " " << sizeof(SpotLight);
+	lightUBO_.directional(0).color_ = {0, 0, 1};
+	lightUBO_.directional(0).direction_ = QVector3D(0.0, -1.0, 0.0).normalized();
+	lightUBO_.directional(0).ambientStrength = 0.1;
+	lightUBO_.directional(0).diffuseStrength = 0.8;
+	lightUBO_.directional(0).specularStrength = 0.5;
+
+	lightUBO_.directional(1).color_ = {1, 0, 0};
+	lightUBO_.directional(1).direction_ = QVector3D(0.0, -1.0, 0.0).normalized();
+	lightUBO_.directional(1).ambientStrength = 0.1;
+	lightUBO_.directional(1).diffuseStrength = 0.8;
+	lightUBO_.directional(1).specularStrength = 0.5;
+
+
+
+	lightUBO_.spot(0).color_ = {0, 1, 0};
+	lightUBO_.spot(1).color_ = {0, 0, 1};
+
 	chessProgram_ = std::make_shared<QOpenGLShaderProgram>();
 	chessProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/model.vert");
 	chessProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment,
 											":/Shaders/model.frag");
 
+	lightUBO_.initialise();
+	lightUBO_.bindToShader(chessProgram_, "LightSources");
+
 	chess_.setShaderProgram(chessProgram_);
 	chess_.loadFromGLTF(":/Models/chess_2.glb");
 
 	chessInstance_.transform_.setToIdentity();
-	chessInstance_.transform_.translate(1, 1, 1);
 	chessInstance_.transform_.scale(5.0);
+	//chessInstance_.transform_.translate(1, 1, 1);
 
 	// Configure shaders
 	program_ = std::make_unique<QOpenGLShaderProgram>(this);
@@ -156,6 +177,9 @@ void Window::onInit()
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
+	// This seemed to be doing nothing?..
+	//glEnable(GL_FRAMEBUFFER_SRGB);
+
 	// Clear all FBO buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -178,6 +202,8 @@ void Window::onRender()
 	// Bind VAO and shader program
 	program_->bind();
 	vao_.bind();
+
+	//chessInstance_.transform_.translate(0, 0, 0.01);
 
 	{
 		float speed = 0.01f;
@@ -233,6 +259,14 @@ void Window::onRender()
 	vao_.release();
 	program_->release();
 
+
+	lightRotationCouner_ += 0.005;
+	lightUBO_.directional(0).direction_ = 
+		QVector3D(0.0, -std::sinf(lightRotationCouner_), -std::cosf(lightRotationCouner_)).normalized();
+	lightUBO_.directional(1).direction_ =
+		QVector3D(-std::sinf(lightRotationCouner_), -std::cosf(lightRotationCouner_), 0.0).normalized();
+	lightUBO_.updateDirectional(0);
+	lightUBO_.updateDirectional(1);
 	chess_.render(camera_, {&chessInstance_});
 
 	++frameCount_;

@@ -9,11 +9,11 @@ set(SRCS
     Shaders/model.vert
     Textures/voronoi.png
     resources.qrc
- "FpvCamera.h" "FpvCamera.cpp" "KeyPressContainer.h" "KeyPressContainer.cpp" "Model.h" "Model.cpp")
+ "FpvCamera.h" "FpvCamera.cpp" "KeyPressContainer.h" "KeyPressContainer.cpp" "Model.h" "Model.cpp" "Lights.h" "Lights.cpp")
 
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
-add_executable(demo-app ${SRCS} "FpvCamera.h" "FpvCamera.cpp" "Model.h" "Model.cpp")
+add_executable(demo-app ${SRCS} "FpvCamera.h" "FpvCamera.cpp" "Model.h" "Model.cpp" "Lights.h" "Lights.cpp")
 
 target_link_libraries(demo-app
     PRIVATE

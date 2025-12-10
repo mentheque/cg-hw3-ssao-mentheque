@@ -36,5 +36,7 @@ private:
 	QMatrix4x4 projectionView_;
 	bool updatePv_ = true;
 	
+	// Learn openGL does it that way, so do some models,
+	// So I guess I'll do to.
 	const QVector3D up_ = {0.0, 1.0, 0.0};
 };

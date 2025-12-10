@@ -16,6 +16,8 @@
 #include "FpvCamera.h"
 #include "KeyPressContainer.h"
 #include "Model.h"
+#include "Lights.h"
+
 
 class Window final : public fgl::GLWidget
 {
@@ -85,6 +87,10 @@ private:
 	Model chess_;
 	Instance chessInstance_;
 	std::shared_ptr<QOpenGLShaderProgram> chessProgram_;
+
+private:
+	LightUBOManager<2, 2> lightUBO_;
+	float lightRotationCouner_ = 0.0;
 
 private:
 

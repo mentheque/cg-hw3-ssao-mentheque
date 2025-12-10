@@ -1,6 +1,11 @@
 #version 330 core
 
-//in vec3 frag_pos;
+// Lighting controls: 
+// -----------------
+#define _directionalSize 2
+#define _spotSize 2
+// -----------------
+
 in vec3 frag_normal;
 in vec2 tex_coord;
 
@@ -21,7 +26,37 @@ struct Material{
 };
 uniform Material material;
 
+layout (std140) uniform LightSources {
+    struct DirectionalLight{
+        vec3 direction; // expect to be normalised.
+        vec3 color;
+        float ambientStrength;
+        float diffuseStrength;
+        float specularStrength;
+    } directionals[_directionalSize];
+
+    struct SpotLight{
+        DirectionalLight directional;
+        vec3 position;
+        float innerCutoff;
+        float outerCutoff;
+    } spotlights[_spotSize];
+};
+
 out vec4 out_col;
+
+vec4 sample_frag_color(){
+    vec4 tex_color = texture(diffuse_texture, tex_coord);
+    tex_color.a = 1.0;
+
+    vec4 base_color = material.base_color;
+
+    if(material.has_texture){
+        base_color *= tex_color;
+    }
+
+    return base_color;
+}
 
 void main() {
     vec3 norm = normalize(frag_normal);
@@ -38,29 +73,26 @@ void main() {
         norm = normalize(TBN * norm);
     }
 
-    vec3 lightColor = vec3(1.0, 1.0, 1.0);
-    float ambientStrength = 0.2;
-    vec3 ambient = ambientStrength * lightColor;
+    float ambient;
+    float diffuse;
+    float specular;
 
-    vec3 lightDir = normalize(camera_pos_world - frag_pos_world);
-    float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = diff * lightColor;
+    vec3 lightAccumulare = vec3(0.0, 0.0, 0.0);
 
-    float specularStrength = 0.5;
-    //vec3 viewDir = normalize(viewPos - fragPos);
-    //vec3 reflectDir = reflect(-lightDir, norm);
-    //float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-    //vec3 specular = specularStrength * spec * lightColor;
+    vec3 viewDir = normalize(camera_pos_world - frag_pos_world);
 
-    vec4 tex_color = texture(diffuse_texture, tex_coord);
+    for(int i = 0;i < _directionalSize;i++){
+        ambient = directionals[i].ambientStrength;
+        diffuse = directionals[i].diffuseStrength * max(dot(norm, -directionals[i].direction), 0.0);
+        // 32 should be from material
+        specular = directionals[i].specularStrength * 
+            pow(max(dot(viewDir, reflect(directionals[i].direction, norm)), 0.0), 32);
 
-    vec4 base_color = material.base_color;
-
-    if(material.has_texture){
-        base_color = tex_color;
+        lightAccumulare +=  directionals[i].color * (ambient + diffuse + specular);
     }
 
-    vec3 result = (ambient + diffuse) * base_color.rgb;
-    out_col = vec4(result, base_color.a);
-    //out_col = vec4(norm.rgb, 1.0);
+    vec4 base_color = sample_frag_color();
+    
+    vec3 linear_out = clamp(lightAccumulare * vec3(base_color), 0.0, 1.0);
+    out_col = vec4(pow(linear_out.rgb, vec3(1.0/2.2)), base_color.a);
 }

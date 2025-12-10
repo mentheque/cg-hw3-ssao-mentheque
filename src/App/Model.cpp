@@ -62,6 +62,10 @@ bool Model::loadFromGLTF(const QString& filePath) {
 
 	qDebug() << "loaded file\n";
 
+	textures_.resize(model.textures.size());
+
+	/*
+
 	for (const auto & texture: model.textures)
 	{
 		if (texture.source >= 0 && texture.source < static_cast<int>(model.images.size()))
@@ -83,10 +87,11 @@ bool Model::loadFromGLTF(const QString& filePath) {
 			tex->setMinMagFilters(QOpenGLTexture::LinearMipMapLinear, QOpenGLTexture::Linear);
 			tex->setWrapMode(QOpenGLTexture::Repeat);
 			tex->generateMipMaps();
-
+			tex->setFormat(QOpenGLTexture::TextureFormat::SRGB8_Alpha8);
 			textures_.push_back(std::move(tex));
 		}
 	}
+	*/
 
 	qDebug() << "loaded textures\n";
 
@@ -138,6 +143,9 @@ bool Model::loadFromGLTF(const QString& filePath) {
 					meshData.vertices[i].normal[0] = normals.get(i, 0);
 					meshData.vertices[i].normal[1] = normals.get(i, 1);
 					meshData.vertices[i].normal[2] = normals.get(i, 2);
+
+					//qDebug() << meshData.vertices[i].normal[0] << " " <<
+						//meshData.vertices[i].normal[1] << " " << meshData.vertices[i].normal[2];
 				}
 			}
 
@@ -213,11 +221,17 @@ bool Model::loadFromGLTF(const QString& filePath) {
 				{
 					meshData.material_.hasTexture = true;
 					meshData.textureIndex = material.pbrMetallicRoughness.baseColorTexture.index;
+
+					// As per gltf specifications, baseColorTexture is always in sRGB.
+					initaliseTexture(meshData.textureIndex,
+						QOpenGLTexture::TextureFormat::SRGB8_Alpha8, model);
 				}
 				if (material.normalTexture.index >= 0)
 				{
 					meshData.material_.hasNormalMap = true;
 					meshData.normalIndex = material.normalTexture.index;
+
+					initaliseTexture(meshData.normalIndex, QOpenGLTexture::TextureFormat::RGBA8_UNorm, model);
 				}
 
 				meshData.material_.baseColor = QVector4D(
@@ -240,6 +254,52 @@ bool Model::loadFromGLTF(const QString& filePath) {
 	qDebug() << "finished loading\n";
 	return true;
 }
+
+void Model::initaliseTexture(const size_t textureIdx,
+	QOpenGLTexture::TextureFormat format, const tinygltf::Model & model)
+{
+	const auto & texture = model.textures[textureIdx];
+	auto & tex = textures_[textureIdx];
+
+	if (texture.source >= 0 && texture.source < static_cast<int>(model.images.size()))
+	{
+		const auto & image = model.images[texture.source];
+
+		// TODO: other component numbers
+		QImage qimg;
+		if (image.component == 3)
+		{
+			qimg = QImage(image.image.data(), image.width, image.height, QImage::Format_RGB888);
+		}
+		else if (image.component == 4)
+		{
+			qimg = QImage(image.image.data(), image.width, image.height, QImage::Format_RGBA8888);
+		}
+
+		// more data, less shader code, I gues that's fine for now.
+		// default constructor from qimg seem to do this anyway (? in docs it says I think)
+		qimg = qimg.convertToFormat(QImage::Format_RGBA8888);
+
+		tex = std::make_unique<QOpenGLTexture>(QOpenGLTexture::Target2D);
+		tex->setSize(qimg.width(), qimg.height());
+		tex->setFormat(format);
+		tex->allocateStorage(QOpenGLTexture::RGBA, QOpenGLTexture::UInt8);
+
+		tex->setData(0, QOpenGLTexture::RGBA, QOpenGLTexture::UInt8, qimg.constBits());
+
+		// TODO: get values from sampler
+		tex->setMinMagFilters(QOpenGLTexture::LinearMipMapLinear, QOpenGLTexture::Linear);
+		tex->setWrapMode(QOpenGLTexture::Repeat);
+
+		tex->generateMipMaps();
+
+		tex->release();
+	}
+	else {
+		qDebug() << "Failed to load texture: incorrect source idx";
+	}
+}
+
 
 void Model::setupMeshBuffers()
 {
@@ -265,7 +325,7 @@ void Model::setupMeshBuffers()
 			ibo->bind();
 			ibo->setUsagePattern(QOpenGLBuffer::StaticDraw);
 			ibo->allocate(primitive.indices.data(), static_cast<int>(primitive.indices.size() * sizeof(uint32_t)));
-
+			
 			shaderProgram_->bind();
 
 			shaderProgram_->enableAttributeArray(0);
@@ -326,7 +386,6 @@ void Model::render(FpvCamera & camera, std::vector<Instance *> instances)
 
 // Assuming shaderProgram and camera related stuff is already set up? 
 void Model::renderNode(FpvCamera& camera, tinygltf::Node node, QMatrix4x4 transform) {
-
 	// TODO: pass pv matrix initially and see how performance improoves compared to 
 	// calculating it here and passing there each mesh.
 
@@ -365,7 +424,7 @@ void Model::renderNode(FpvCamera& camera, tinygltf::Node node, QMatrix4x4 transf
 		const auto & mesh = meshes_[node.mesh];
 		for (size_t i = 0;i < mesh.primitives_.size();i++)
 		{
-			if (i < mesh.vaos_.size() && mesh.vaos_[i])
+			if (i < mesh.vaos_.size() && vaos_[mesh.vaos_[i]])
 			{
 				vaos_[mesh.vaos_[i]]->bind();
 				const auto & primitive = mesh.primitives_[i];

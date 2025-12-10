@@ -18,15 +18,15 @@ out vec3 T;
 out float handednes;
 
 void main() {
-    N = normalize(normalMatrix * normal);
-    T = normalize(normalMatrix * tangent.xyz);
-    handednes = tangent.w;
+    //N = normalize(normalMatrix * normal);
+    //T = normalize(normalMatrix * tangent.xyz);
+    //handednes = tangent.w;
     
     //T = normalize(T - dot(T, N) * N);
 
     //TBN = mat3(T, B, N);
     tex_coord = texCoord;
-    frag_normal = normalMatrix * normal;
+    frag_normal = normalize(normalMatrix * normal);
     vec4 worldPos = model * vec4(pos, 1.0);
     frag_pos_world = worldPos.xyz;
 
