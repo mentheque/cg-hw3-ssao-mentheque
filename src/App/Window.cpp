@@ -47,7 +47,7 @@ constexpr std::array<GLuint, 36u> cubeIndices = {
 	2, 6, 5};
 
 constexpr std::array<GLfloat, 30u> modelTransfroms = {
-	2.0, 2.0, 2.0, 30.0, 50.0, 0.0,
+	1.0, 1.0, 1.0, 30.0, 50.0, 0.0,
 	3.0, 4.5, -10.0, 180.0, 60.0, 0.0,
 	-5.0, 6.0, -15.5, 90.0, 90.0, 90.0,
 	3.3, 3.0, -5.3, 180.0, 0.0, 0.0,
@@ -117,16 +117,16 @@ void Window::onInit()
 	lightUBO_.spot(0).innerCutoff_ = std::cosf(12.5f * float(std::numbers::pi) / 180.0f);
 	lightUBO_.spot(0).outerCutoff_ = std::cosf(13.0f * float(std::numbers::pi) / 180.0f); 
 	lightUBO_.spot(0).ambientStrength = 0.0;
-	lightUBO_.spot(0).diffuseStrength = 0.8;
+	lightUBO_.spot(0).diffuseStrength = 0.3;
 	lightUBO_.spot(0).specularStrength = 1.0;
 
 	lightUBO_.spot(1).color_ = {0, 1, 1};
 	lightUBO_.spot(1).direction_ = QVector3D(-1.0, -1.0, -1.0).normalized();
-	lightUBO_.spot(1).position_ = {1, 1, 1};
+	lightUBO_.spot(1).position_ = {2, 2, 2};
 	lightUBO_.spot(1).innerCutoff_ = std::cosf(19.5f * float(std::numbers::pi) / 180.0f);
 	lightUBO_.spot(1).outerCutoff_ = std::cosf(20.0f * float(std::numbers::pi) / 180.0f); 
 	lightUBO_.spot(1).ambientStrength = 0.0;
-	lightUBO_.spot(1).diffuseStrength = 0.8;
+	lightUBO_.spot(1).diffuseStrength = 0.3;
 	lightUBO_.spot(1).specularStrength = 1.0;
 
 
@@ -139,12 +139,37 @@ void Window::onInit()
 	lightUBO_.bindToShader(chessProgram_, "LightSources");
 
 	chess_.setShaderProgram(chessProgram_);
-	chess_.loadFromGLTF(":/Models/chess_2.glb");
+	chess_.loadFromGLTF(":/Models/default_material_cube.glb");
 
 	chessInstance_.transform_.setToIdentity();
-	chessInstance_.transform_.scale(5.0);
+	chessInstance_.transform_.scale(1.0);
 	//chessInstance_.transform_.translate(1, 1, 1);
 
+	// LIGHT MODELS:
+	//----------------
+	directionalModel_.setShaderProgram(chessProgram_);
+	spotModel_.setShaderProgram(chessProgram_);
+
+	directionalModel_.loadFromGLTF(":/Models/default_material_cube.glb");
+	spotModel_.loadFromGLTF(":/Models/default_material_cube.glb");
+
+	directionalManager0_ = std::make_unique<lightModelManager<2, 2>>(&lightUBO_, LightType::Directional, 0,
+																	 &directionalModel_, "LightSources", -10.0);
+	directionalManager1_ = std::make_unique<lightModelManager<2, 2>>(&lightUBO_, LightType::Directional, 1,
+																	 &directionalModel_, "LightSources", -10.0);
+	spotManager0_ = std::make_unique<lightModelManager<2, 2>>(&lightUBO_, LightType::Spot, 0,
+															  &spotModel_, "LightSources", 0.0);
+	spotManager1_ = std::make_unique<lightModelManager<2, 2>>(&lightUBO_, LightType::Spot, 1,
+															  &spotModel_, "LightSources", 0.0);
+
+	directionalManager0_->scale(5.0);
+	directionalManager1_->scale(5.0);
+
+	spotManager0_->scale(0.5);
+	spotManager1_->scale(0.5);
+
+	//-----------------
+	
 	// Configure shaders
 	program_ = std::make_unique<QOpenGLShaderProgram>(this);
 	program_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/diffuse.vert");
@@ -282,6 +307,17 @@ void Window::onRender()
 		QVector3D(-std::sinf(lightRotationCouner_), -std::cosf(lightRotationCouner_), 0.0).normalized();
 	lightUBO_.updateDirectional(0);
 	lightUBO_.updateDirectional(1);
+
+	directionalManager0_->update();
+	directionalManager1_->update();
+	directionalManager0_->render(camera_); // this renders only light's model, 
+	directionalManager1_->render(camera_); // we are without shadows, actual lights are 
+	// already updated, so order between models doesn't really matter
+	spotManager0_->update();
+	spotManager1_->update();
+	spotManager0_->render(camera_);
+	spotManager1_->render(camera_);
+
 	chess_.render(camera_, {&chessInstance_});
 
 	++frameCount_;

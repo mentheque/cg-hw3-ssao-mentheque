@@ -49,19 +49,21 @@ class Model
 public:
 	Model();
 	void setShaderProgram(std::shared_ptr<QOpenGLShaderProgram> program);
+	std::shared_ptr<QOpenGLShaderProgram> getShaderProgram();
 
 	void initaliseTexture(const size_t textureIdx,
 						  QOpenGLTexture::TextureFormat format, const tinygltf::Model & model);
 	bool loadFromGLTF(const QString & filePath);
 private:
-	QMatrix4x4 transform_;
+	Instance instance_;
 
 public:
-	QMatrix4x4 getTransform();
+	QMatrix4x4 & getTransform();
 	void setTransform(QMatrix4x4 transform);
 
 public:
 	void render(FpvCamera & camera, std::vector<Instance*> instances);
+	void render(FpvCamera & camera);
 
 private:
 	void renderNode(FpvCamera & camera, tinygltf::Node node, QMatrix4x4 transform);

@@ -30,6 +30,11 @@ void Model::setShaderProgram(std::shared_ptr<QOpenGLShaderProgram> program) {
 	}
 }
 
+std::shared_ptr<QOpenGLShaderProgram> Model::getShaderProgram() {
+	return shaderProgram_;
+}
+
+
 bool Model::loadFromGLTF(const QString& filePath) {
 	qDebug() << "started loading\n";
 
@@ -63,38 +68,6 @@ bool Model::loadFromGLTF(const QString& filePath) {
 	qDebug() << "loaded file\n";
 
 	textures_.resize(model.textures.size());
-
-	/*
-
-	for (const auto & texture: model.textures)
-	{
-		if (texture.source >= 0 && texture.source < static_cast<int>(model.images.size()))
-		{
-			const auto & image = model.images[texture.source];
-
-			QImage qimg;
-			if (image.component == 3)
-			{
-				qDebug() << "3-texture";
-				qimg = QImage(image.image.data(), image.width, image.height, QImage::Format_RGB888);
-			}
-			else if (image.component == 4)
-			{
-				qDebug() << "4-texture";
-				qimg = QImage(image.image.data(), image.width, image.height, QImage::Format_RGBA8888);
-			}
-			auto tex = std::make_unique<QOpenGLTexture>(qimg);
-			tex->setMinMagFilters(QOpenGLTexture::LinearMipMapLinear, QOpenGLTexture::Linear);
-			tex->setWrapMode(QOpenGLTexture::Repeat);
-			tex->generateMipMaps();
-			tex->setFormat(QOpenGLTexture::TextureFormat::SRGB8_Alpha8);
-			textures_.push_back(std::move(tex));
-		}
-	}
-	*/
-
-	qDebug() << "loaded textures\n";
-
 
 	for (const auto & mesh: model.meshes)
 	{
@@ -143,9 +116,6 @@ bool Model::loadFromGLTF(const QString& filePath) {
 					meshData.vertices[i].normal[0] = normals.get(i, 0);
 					meshData.vertices[i].normal[1] = normals.get(i, 1);
 					meshData.vertices[i].normal[2] = normals.get(i, 2);
-
-					//qDebug() << meshData.vertices[i].normal[0] << " " <<
-						//meshData.vertices[i].normal[1] << " " << meshData.vertices[i].normal[2];
 				}
 			}
 
@@ -214,32 +184,35 @@ bool Model::loadFromGLTF(const QString& filePath) {
 				}
 			}
 
+			// Default material
+			tinygltf::Material material;
 			if (primitive.material >= 0 && primitive.material < static_cast<int>(model.materials.size()))
 			{
-				const auto & material = model.materials[primitive.material];
-				if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
-				{
-					meshData.material_.hasTexture = true;
-					meshData.textureIndex = material.pbrMetallicRoughness.baseColorTexture.index;
-
-					// As per gltf specifications, baseColorTexture is always in sRGB.
-					initaliseTexture(meshData.textureIndex,
-						QOpenGLTexture::TextureFormat::SRGB8_Alpha8, model);
-				}
-				if (material.normalTexture.index >= 0)
-				{
-					meshData.material_.hasNormalMap = true;
-					meshData.normalIndex = material.normalTexture.index;
-
-					initaliseTexture(meshData.normalIndex, QOpenGLTexture::TextureFormat::RGBA8_UNorm, model);
-				}
-
-				meshData.material_.baseColor = QVector4D(
-					static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[0]),
-					static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[1]),
-					static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[2]),
-					static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[3]));
+				material = model.materials[primitive.material]; // Yes, a copy, but it's just some idxes and
+				// this way code is concice, so this for now. 
 			}
+			if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
+			{
+				meshData.material_.hasTexture = true;
+				meshData.textureIndex = material.pbrMetallicRoughness.baseColorTexture.index;
+
+				// As per gltf specifications, baseColorTexture is always in sRGB.
+				initaliseTexture(meshData.textureIndex,
+					QOpenGLTexture::TextureFormat::SRGB8_Alpha8, model);
+			}
+			if (material.normalTexture.index >= 0)
+			{
+				meshData.material_.hasNormalMap = true;
+				meshData.normalIndex = material.normalTexture.index;
+
+				initaliseTexture(meshData.normalIndex, QOpenGLTexture::TextureFormat::RGBA8_UNorm, model);
+			}
+
+			meshData.material_.baseColor = QVector4D(
+				static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[0]),
+				static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[1]),
+				static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[2]),
+				static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[3]));
 
 			toPushBack.primitives_.push_back(std::move(meshData));
 		}
@@ -352,11 +325,11 @@ void Model::setupMeshBuffers()
 }
 
 
-QMatrix4x4 Model::getTransform() {
-	return transform_;
+QMatrix4x4 & Model::getTransform() {
+	return instance_.transform_;
 }
 void Model::setTransform(QMatrix4x4 transform) {
-	transform_ = transform;
+	instance_.transform_ = transform;
 }
 
 void Model::render(FpvCamera & camera, std::vector<Instance *> instances)
@@ -382,6 +355,10 @@ void Model::render(FpvCamera & camera, std::vector<Instance *> instances)
 	}
 
 	shaderProgram_->release();
+}
+
+void Model::render(FpvCamera& camera) {
+	render(camera, {&instance_});
 }
 
 // Assuming shaderProgram and camera related stuff is already set up? 

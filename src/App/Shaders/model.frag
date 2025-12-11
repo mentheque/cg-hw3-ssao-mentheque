@@ -107,7 +107,7 @@ void main() {
             specular = spotlights[i].directional.specularStrength * 
                 pow(max(dot(viewDir, reflect(spotlights[i].directional.direction, norm)), 0.0), 32);
 
-            // Just linear based on cosine? Looks wierd but whatever
+            // Just linear based on cosine? Looks a bit wierd but whatever
             if(cosine < spotlights[i].innerCutoff){
                 edgeFadeoutAdjust = (cosine - spotlights[i].outerCutoff) 
                     / (spotlights[i].innerCutoff - spotlights[i].outerCutoff);

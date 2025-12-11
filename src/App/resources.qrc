@@ -11,5 +11,7 @@
         <file>Models/DamagedHelmet.glb</file>
         <file>Models/chess_2.glb</file>
         <file>Models/Box.glb</file>
+        <file>Models/blender_sphere.glb</file>
+        <file>Models/default_material_cube.glb</file>
     </qresource>
 </RCC>

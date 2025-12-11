@@ -8,6 +8,9 @@
 
 #include <memory>
 
+#include "Model.h"
+#include "FpvCamera.h"
+
 struct DirectionalLight
 {
 	alignas(16) QVector3D direction_; // 12
@@ -45,6 +48,12 @@ struct LightUniformData {
 	size_t size() const{
 		return sizeof(DirectionalLight) * directionalSize + sizeof(SpotLight) * spotSize;
 	}
+};
+
+enum class LightType
+{
+	Directional,
+	Spot
 };
 
 template<size_t directionalSize, size_t spotSize>
@@ -150,4 +159,133 @@ public:
 		glExtra->glUniformBlockBinding(program->programId(), blockIndex, bindingPoint_);
 		program->release();
 	}
+};
+
+template <size_t directionalSize, size_t spotSize>
+class lightModelManager
+{
+	LightUBOManager<directionalSize, spotSize> * const lights_;
+	const bool spot_;
+	const size_t idx_;
+
+	Model * model_;
+
+	Instance instance_;
+	float directionalOffset_ = 0.0;
+
+	GLint lightIdxUniform_ = -1;
+	GLint lightTypeUniform_ = -1;
+
+	float scale_ = 1.0;
+
+	QVector3D cachedColor_;
+
+	inline static const QVector3D _deactivatedColor_ = {0.0, 0.0, 0.0};
+public: 
+	lightModelManager(LightUBOManager<directionalSize, spotSize> * lights,
+					  LightType lightType,
+					  size_t idx,
+					  Model * model,
+					  const GLchar * blockName,
+					  float directionalOffset = 0)
+		: lights_(lights)
+		, spot_(lightType == LightType::Spot)
+		, idx_(idx)
+		, model_(model)
+		, directionalOffset_(directionalOffset)
+	{
+		ensureUBOBinding(blockName);
+		cachedColor_ = _deactivatedColor_;
+	}
+
+	void ensureUBOBinding(const GLchar * blockName)
+	{
+		auto program = model_->getShaderProgram();
+		lights_->bindToShader(program, blockName);
+
+		lightIdxUniform_ = program->uniformLocation("light.idx");
+		lightTypeUniform_ = program->uniformLocation("light.type");
+	}
+
+	void changeModel(Model * model, const GLchar * blockName)
+	{
+		model_ = model;
+		ensureUBOBinding(blockName);
+	}
+
+	void activateLight() {
+		if (!instance_.active_)
+		{
+			if (spot_) {
+				lights_->spot(idx_).color_ = cachedColor_;
+			}
+			else {
+				lights_->directional(idx_).color_ = cachedColor_;
+			}
+			cachedColor_ = _deactivatedColor_;
+			instance_.active_ = true;
+		}
+	}
+
+	void deactivateLight() {
+		if (instance_.active_)
+		{
+			if (spot_)
+			{
+				cachedColor_ = lights_->spot(idx_).color_;
+			}
+			else
+			{
+				cachedColor_ = lights_->directional(idx_).color_;
+			}
+			instance_.active_ = false;
+		}
+	}
+
+	float getDirectionalOffset()
+	{
+		return directionalOffset_;
+	}
+
+	void scale(float scale) {
+		scale_ = scale;
+	}
+
+	void setDirectionalOffset(float directionalOffset)
+	{
+		directionalOffset_ = directionalOffset;
+	}
+
+	void update() {
+		QVector3D direction, position;
+
+		if (spot_) {
+			direction = lights_->spot(idx_).direction_;
+			position = lights_->spot(idx_).position_;
+		}
+		else {
+			direction = lights_->directional(idx_).direction_;
+			position = {0, 0, 0};
+		}
+		direction.normalize();
+		position += direction * directionalOffset_;
+
+		QQuaternion rotation = QQuaternion::rotationTo({0, -1, 0}, direction);
+
+		instance_.transform_.setToIdentity();
+		instance_.transform_.translate(position);
+		instance_.transform_.rotate(rotation);
+		instance_.transform_.scale(scale_);		
+	}
+
+	void render(FpvCamera & camera)
+	{
+		if (lightIdxUniform_ >= 0 && lightTypeUniform_ >= 0) {
+			auto program = model_->getShaderProgram();
+			program->setUniformValue(lightIdxUniform_, (GLint)idx_);
+			program->setUniformValue(lightTypeUniform_, spot_);
+		}
+		model_->render(camera, {&instance_});
+	}
+
 };

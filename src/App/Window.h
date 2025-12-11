@@ -92,6 +92,13 @@ private:
 	LightUBOManager<2, 2> lightUBO_;
 	float lightRotationCouner_ = 0.0;
 
+	Model directionalModel_;
+	Model spotModel_;
+	std::unique_ptr<lightModelManager<2, 2>> directionalManager0_;
+	std::unique_ptr<lightModelManager<2, 2>> directionalManager1_;
+	std::unique_ptr<lightModelManager<2, 2>> spotManager0_;
+	std::unique_ptr<lightModelManager<2, 2>> spotManager1_;
+
 private:
 
 	QElapsedTimer timer_;
