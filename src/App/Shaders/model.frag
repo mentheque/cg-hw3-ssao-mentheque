@@ -91,6 +91,35 @@ void main() {
         lightAccumulare +=  directionals[i].color * (ambient + diffuse + specular);
     }
 
+    float edgeFadeoutAdjust = 1.0;
+
+    for(int i = 0;i < _spotSize;i++){
+        vec3 fromLightDir = normalize(frag_pos_world - spotlights[i].position);
+        
+        float cosine = dot(fromLightDir, spotlights[i].directional.direction);
+
+        diffuse = specular = 0;
+
+        if(cosine > spotlights[i].outerCutoff){
+            diffuse = spotlights[i].directional.diffuseStrength * 
+                max(dot(norm, -spotlights[i].directional.direction), 0.0);
+            // 32 should be from material
+            specular = spotlights[i].directional.specularStrength * 
+                pow(max(dot(viewDir, reflect(spotlights[i].directional.direction, norm)), 0.0), 32);
+
+            // Just linear based on cosine? Looks wierd but whatever
+            if(cosine < spotlights[i].innerCutoff){
+                edgeFadeoutAdjust = (cosine - spotlights[i].outerCutoff) 
+                    / (spotlights[i].innerCutoff - spotlights[i].outerCutoff);
+                diffuse *= edgeFadeoutAdjust;
+                specular *= edgeFadeoutAdjust;
+            }
+        }
+        ambient = spotlights[i].directional.ambientStrength;
+
+        lightAccumulare += spotlights[i].directional.color * (ambient + diffuse + specular);
+    }
+
     vec4 base_color = sample_frag_color();
     
     vec3 linear_out = clamp(lightAccumulare * vec3(base_color), 0.0, 1.0);

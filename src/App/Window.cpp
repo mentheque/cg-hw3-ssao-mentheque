@@ -10,6 +10,7 @@
 #include <array>
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 #define TINYGLTF_IMPLEMENTATION
@@ -110,10 +111,24 @@ void Window::onInit()
 	lightUBO_.directional(1).diffuseStrength = 0.8;
 	lightUBO_.directional(1).specularStrength = 0.5;
 
+	lightUBO_.spot(0).color_ = {1, 1, 0};
+	lightUBO_.spot(0).direction_ = QVector3D(0.0, -1.0, 0.0).normalized();
+	lightUBO_.spot(0).position_ = {1, 6, 1};
+	lightUBO_.spot(0).innerCutoff_ = std::cosf(12.5f * float(std::numbers::pi) / 180.0f);
+	lightUBO_.spot(0).outerCutoff_ = std::cosf(13.0f * float(std::numbers::pi) / 180.0f); 
+	lightUBO_.spot(0).ambientStrength = 0.0;
+	lightUBO_.spot(0).diffuseStrength = 0.8;
+	lightUBO_.spot(0).specularStrength = 1.0;
 
+	lightUBO_.spot(1).color_ = {0, 1, 1};
+	lightUBO_.spot(1).direction_ = QVector3D(-1.0, -1.0, -1.0).normalized();
+	lightUBO_.spot(1).position_ = {1, 1, 1};
+	lightUBO_.spot(1).innerCutoff_ = std::cosf(19.5f * float(std::numbers::pi) / 180.0f);
+	lightUBO_.spot(1).outerCutoff_ = std::cosf(20.0f * float(std::numbers::pi) / 180.0f); 
+	lightUBO_.spot(1).ambientStrength = 0.0;
+	lightUBO_.spot(1).diffuseStrength = 0.8;
+	lightUBO_.spot(1).specularStrength = 1.0;
 
-	lightUBO_.spot(0).color_ = {0, 1, 0};
-	lightUBO_.spot(1).color_ = {0, 0, 1};
 
 	chessProgram_ = std::make_shared<QOpenGLShaderProgram>();
 	chessProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/model.vert");

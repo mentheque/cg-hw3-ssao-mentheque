@@ -18,11 +18,11 @@ out vec3 T;
 out float handednes;
 
 void main() {
-    //N = normalize(normalMatrix * normal);
-    //T = normalize(normalMatrix * tangent.xyz);
-    //handednes = tangent.w;
+    N = normalize(normalMatrix * normal);
+    T = normalize(normalMatrix * tangent.xyz);
+    handednes = tangent.w;
     
-    //T = normalize(T - dot(T, N) * N);
+    T = normalize(T - dot(T, N) * N);
 
     //TBN = mat3(T, B, N);
     tex_coord = texCoord;
