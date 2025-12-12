@@ -55,23 +55,8 @@ signals:
 	void updateUI();
 
 private:
-	GLint mvpUniform_ = -1;
-
-	QOpenGLBuffer vbo_{QOpenGLBuffer::Type::VertexBuffer};
-	QOpenGLBuffer ibo_{QOpenGLBuffer::Type::IndexBuffer};
-	QOpenGLVertexArrayObject vao_;
-
-	QOpenGLVertexArrayObject lightVao_;
-
-
-	QMatrix4x4 model_;
-	QMatrix4x4 rotary_;
-	QMatrix4x4 view_;
-	QMatrix4x4 projection_;
-
-	std::unique_ptr<QOpenGLShaderProgram> program_;
-
 	FpvCamera camera_;
+
 private:
 	void captureMouse();
 	void releaseMouse();
@@ -91,6 +76,11 @@ private:
 private:
 	LightUBOManager<2, 2> lightUBO_;
 	float lightRotationCouner_ = 0.0;
+
+
+	std::shared_ptr<QOpenGLShaderProgram> directionalProgram_;
+	std::shared_ptr<QOpenGLShaderProgram> spotProgram_;
+
 
 	Model directionalModel_;
 	Model spotModel_;

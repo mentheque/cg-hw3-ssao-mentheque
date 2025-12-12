@@ -13,5 +13,11 @@
         <file>Models/Box.glb</file>
         <file>Models/blender_sphere.glb</file>
         <file>Models/default_material_cube.glb</file>
+        <file>Shaders/shineThrough.frag</file>
+        <file>Models/black_bottom_cone.glb</file>
+        <file>Shaders/coneScaling.vert</file>
+        <file>Models/blender_no_projection.glb</file>
+        <file>Models/blender_projection_to_one_side.glb</file>
+        <file>Models/blender_yx.glb</file>
     </qresource>
 </RCC>

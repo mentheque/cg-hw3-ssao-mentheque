@@ -91,12 +91,12 @@ bool Model::loadFromGLTF(const QString& filePath) {
 
 				BufferReader<float> positions = {buffer, bufferView, accessor};
 
-				meshData.vertices.resize(accessor.count);
+				meshData.vertices_.resize(accessor.count);
 				for (size_t i = 0; i < accessor.count; ++i)
 				{
-					meshData.vertices[i].position[0] = positions.get(i, 0);
-					meshData.vertices[i].position[1] = positions.get(i, 1);
-					meshData.vertices[i].position[2] = positions.get(i, 2);
+					meshData.vertices_[i].position[0] = positions.get(i, 0);
+					meshData.vertices_[i].position[1] = positions.get(i, 1);
+					meshData.vertices_[i].position[2] = positions.get(i, 2);
 				}
 			}
 
@@ -111,11 +111,11 @@ bool Model::loadFromGLTF(const QString& filePath) {
 
 				BufferReader<float> normals = {buffer, bufferView, accessor};
 
-				for (size_t i = 0; i < accessor.count && i < meshData.vertices.size(); ++i)
+				for (size_t i = 0; i < accessor.count && i < meshData.vertices_.size(); ++i)
 				{
-					meshData.vertices[i].normal[0] = normals.get(i, 0);
-					meshData.vertices[i].normal[1] = normals.get(i, 1);
-					meshData.vertices[i].normal[2] = normals.get(i, 2);
+					meshData.vertices_[i].normal[0] = normals.get(i, 0);
+					meshData.vertices_[i].normal[1] = normals.get(i, 1);
+					meshData.vertices_[i].normal[2] = normals.get(i, 2);
 				}
 			}
 
@@ -129,12 +129,12 @@ bool Model::loadFromGLTF(const QString& filePath) {
 
 				BufferReader<float> tangent = {buffer, bufferView, accessor};
 
-				for (size_t i = 0; i < accessor.count && i < meshData.vertices.size(); ++i)
+				for (size_t i = 0; i < accessor.count && i < meshData.vertices_.size(); ++i)
 				{
-					meshData.vertices[i].tangent[0] = tangent.get(i, 0);
-					meshData.vertices[i].tangent[1] = tangent.get(i, 1);
-					meshData.vertices[i].tangent[2] = tangent.get(i, 2);
-					meshData.vertices[i].tangent[3] = tangent.get(i, 3);
+					meshData.vertices_[i].tangent[0] = tangent.get(i, 0);
+					meshData.vertices_[i].tangent[1] = tangent.get(i, 1);
+					meshData.vertices_[i].tangent[2] = tangent.get(i, 2);
+					meshData.vertices_[i].tangent[3] = tangent.get(i, 3);
 				}
 			}
 
@@ -149,10 +149,10 @@ bool Model::loadFromGLTF(const QString& filePath) {
 
 				BufferReader<float> texCoords = {buffer, bufferView, accessor};
 
-				for (size_t i = 0; i < accessor.count && i < meshData.vertices.size(); ++i)
+				for (size_t i = 0; i < accessor.count && i < meshData.vertices_.size(); ++i)
 				{
-					meshData.vertices[i].texCoord[0] = texCoords.get(i, 0);
-					meshData.vertices[i].texCoord[1] = texCoords.get(i, 1);
+					meshData.vertices_[i].texCoord[0] = texCoords.get(i, 0);
+					meshData.vertices_[i].texCoord[1] = texCoords.get(i, 1);
 				}
 			}
 
@@ -162,7 +162,7 @@ bool Model::loadFromGLTF(const QString& filePath) {
 				const auto & bufferView = model.bufferViews[accessor.bufferView];
 				const auto & buffer = model.buffers[bufferView.buffer];
 
-				meshData.indices.resize(accessor.count);
+				meshData.indices_.resize(accessor.count);
 
 				if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
 				{
@@ -170,7 +170,7 @@ bool Model::loadFromGLTF(const QString& filePath) {
 
 					for (size_t i = 0; i < accessor.count; ++i)
 					{
-						meshData.indices[i] = indices.get(i, 0);
+						meshData.indices_[i] = indices.get(i, 0);
 					}
 				}
 				else if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
@@ -179,7 +179,7 @@ bool Model::loadFromGLTF(const QString& filePath) {
 
 					for (size_t i = 0; i < accessor.count; ++i)
 					{
-						meshData.indices[i] = indices.get(i, 0);
+						meshData.indices_[i] = indices.get(i, 0);
 					}
 				}
 			}
@@ -194,18 +194,18 @@ bool Model::loadFromGLTF(const QString& filePath) {
 			if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
 			{
 				meshData.material_.hasTexture = true;
-				meshData.textureIndex = material.pbrMetallicRoughness.baseColorTexture.index;
+				meshData.textureIndex_ = material.pbrMetallicRoughness.baseColorTexture.index;
 
 				// As per gltf specifications, baseColorTexture is always in sRGB.
-				initaliseTexture(meshData.textureIndex,
+				initaliseTexture(meshData.textureIndex_,
 					QOpenGLTexture::TextureFormat::SRGB8_Alpha8, model);
 			}
 			if (material.normalTexture.index >= 0)
 			{
 				meshData.material_.hasNormalMap = true;
-				meshData.normalIndex = material.normalTexture.index;
+				meshData.normalIndex_ = material.normalTexture.index;
 
-				initaliseTexture(meshData.normalIndex, QOpenGLTexture::TextureFormat::RGBA8_UNorm, model);
+				initaliseTexture(meshData.normalIndex_, QOpenGLTexture::TextureFormat::RGBA8_UNorm, model);
 			}
 
 			meshData.material_.baseColor = QVector4D(
@@ -291,13 +291,13 @@ void Model::setupMeshBuffers()
 			vbo->create();
 			vbo->bind();
 			vbo->setUsagePattern(QOpenGLBuffer::StaticDraw);
-			vbo->allocate(primitive.vertices.data(), static_cast<int>(primitive.vertices.size() * sizeof(Vertex)));
+			vbo->allocate(primitive.vertices_.data(), static_cast<int>(primitive.vertices_.size() * sizeof(Vertex)));
 
 			auto ibo = std::make_unique<QOpenGLBuffer>(QOpenGLBuffer::Type::IndexBuffer);
 			ibo->create();
 			ibo->bind();
 			ibo->setUsagePattern(QOpenGLBuffer::StaticDraw);
-			ibo->allocate(primitive.indices.data(), static_cast<int>(primitive.indices.size() * sizeof(uint32_t)));
+			ibo->allocate(primitive.indices_.data(), static_cast<int>(primitive.indices_.size() * sizeof(uint32_t)));
 			
 			shaderProgram_->bind();
 
@@ -338,6 +338,9 @@ void Model::render(FpvCamera & camera, std::vector<Instance *> instances)
 		return;
 
 	shaderProgram_->bind();
+
+	shaderProgram_->setUniformValue("diffuse_texture", 0);// sampler2D uses texture unit index
+	shaderProgram_->setUniformValue("normal_texture", 1);
 
 	if (cameraPosUniform_ >= 0)
 		shaderProgram_->setUniformValue(cameraPosUniform_, camera.getView().inverted().column(3).toVector3D());
@@ -408,11 +411,11 @@ void Model::renderNode(FpvCamera& camera, tinygltf::Node node, QMatrix4x4 transf
 
 				if (primitive.material_.hasTexture)
 				{
-					textures_[primitive.textureIndex]->bind(0);
+					textures_[primitive.textureIndex_]->bind(0);
 				}
 				if (primitive.material_.hasNormalMap)
 				{
-					textures_[primitive.normalIndex]->bind(1);
+					textures_[primitive.normalIndex_]->bind(1);
 				}
 
 				if (material_baseColorUniform_ >= 0)
@@ -429,17 +432,17 @@ void Model::renderNode(FpvCamera& camera, tinygltf::Node node, QMatrix4x4 transf
 					->functions()
 					->glDrawElements(
 						GL_TRIANGLES,
-						static_cast<GLsizei>(primitive.indices.size()),
+						static_cast<GLsizei>(primitive.indices_.size()),
 						GL_UNSIGNED_INT,
 						nullptr);
 
 				if (primitive.material_.hasTexture)
 				{
-					textures_[primitive.textureIndex]->release();
+					textures_[primitive.textureIndex_]->release();
 				}
 				if (primitive.material_.hasNormalMap)
 				{
-					textures_[primitive.normalIndex]->release();
+					textures_[primitive.normalIndex_]->release();
 				}
 
 				vaos_[mesh.vaos_[i]]->release();
@@ -450,4 +453,82 @@ void Model::renderNode(FpvCamera& camera, tinygltf::Node node, QMatrix4x4 transf
 	for (int childIdx : node.children) {
 		renderNode(camera, nodes_[childIdx], transform);
 	}
+}
+
+std::vector<Halfspace> Model::faces(size_t meshIdx)
+{
+	const Mesh & mesh = meshes_[meshIdx];
+	std::vector<Halfspace> out;
+
+	for (const Primitive& primitive : mesh.primitives_) {
+		if (primitive.indices_.size()) {
+			for (size_t i = 0; i < primitive.indices_.size(); i += 3) {
+				const float * aSource = primitive.vertices_[primitive.indices_[i]].position;
+				QVector3D a = {aSource[0], aSource[1], aSource[2]};
+
+				const float * bSource = primitive.vertices_[primitive.indices_[i + 1]].position;
+				QVector3D b = {bSource[0], bSource[1], bSource[2]};
+
+				const float * cSource = primitive.vertices_[primitive.indices_[i + 2]].position;
+				QVector3D c = {cSource[0], cSource[1], cSource[2]};
+
+				QVector3D norm = -QVector3D::crossProduct((b - a), (c - a)).normalized();
+
+				qDebug() << a << norm;
+
+				out.push_back(Halfspace(norm, a));
+			}
+		}
+		else {
+			// TODO: fix copypaste
+			for (size_t i = 0; i < primitive.vertices_.size(); i += 3)
+			{
+				const float * aSource = primitive.vertices_[i].position;
+				QVector3D a = {aSource[0], aSource[1], aSource[2]};
+
+				const float * bSource = primitive.vertices_[i + 1].position;
+				QVector3D b = {bSource[0], bSource[1], bSource[2]};
+
+				const float * cSource = primitive.vertices_[i + 2].position;
+				QVector3D c = {cSource[0], cSource[1], cSource[2]};
+
+				QVector3D norm = -QVector3D::crossProduct((b - a), (c - a)).normalized();
+
+				qDebug() << a << norm;
+
+				out.push_back(Halfspace(norm, a));
+			}
+		}
+	}
+
+	return out;
+}
+
+Cuboid Model::bounds(size_t meshIdx)
+{
+	const Mesh & mesh = meshes_[meshIdx];
+
+	const float * firstPos = mesh.primitives_[0].vertices_[0].position;
+	QVector3D init = {firstPos[0], firstPos[1], firstPos[2]};
+	Cuboid out(init, init);
+
+	for (const Primitive & primitive: mesh.primitives_)
+	{
+		for (const Vertex & vertex: primitive.vertices_)
+		{
+			for (size_t i = 0; i < 3; i++)
+			{
+				if (out.min_[i] > vertex.position[i])
+				{
+					out.min_[i] = vertex.position[i];
+				}
+				if (out.max_[i] < vertex.position[i])
+				{
+					out.max_[i] = vertex.position[i];
+				}
+			}
+		}
+	}
+	
+	return out;
 }

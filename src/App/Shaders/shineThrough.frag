@@ -6,6 +6,21 @@
 #define _spotSize 2
 // -----------------
 
+struct ShineThrough{
+    int idx;
+    bool spot;
+};
+
+uniform ShineThrough shineThrough;
+
+/*
+    So this is just model.frag copied out here
+    with some minor changes to uniforms and handling
+    of pitch black fragments. Could this code have been 
+    written to the main lighting shader? Perhaps. 
+    Maybe it actually should have, but this for now.
+*/
+
 in vec3 frag_normal;
 in vec2 tex_coord;
 
@@ -60,11 +75,11 @@ vec4 sample_frag_color(){
 
 void main() {
     vec3 norm = normalize(frag_normal);
-    if(material.has_normalMap){
+    if(false /*material.has_normalMap*/){
         vec3 fN = normalize(N);
         vec3 fT = normalize(T);
         fT = normalize(fT - dot(fT, fN) * fN);
-        vec3 fB = normalize(cross(fN, fT)) * handednes;
+        vec3 fB = cross(fN, fT) * handednes;
 
         mat3 TBN = mat3(fT, fB, fN);
 
@@ -82,6 +97,10 @@ void main() {
     vec3 viewDir = normalize(camera_pos_world - frag_pos_world);
 
     for(int i = 0;i < _directionalSize;i++){
+        if(!shineThrough.spot && shineThrough.idx == i){
+            continue;
+        }
+
         ambient = directionals[i].ambientStrength;
         diffuse = directionals[i].diffuseStrength * max(dot(norm, -directionals[i].direction), 0.0);
         // 32 should be from material
@@ -94,6 +113,10 @@ void main() {
     float edgeFadeoutAdjust = 1.0;
 
     for(int i = 0;i < _spotSize;i++){
+        if(shineThrough.spot && shineThrough.idx == i){
+            continue;
+        }
+
         vec3 fromLightDir = normalize(frag_pos_world - spotlights[i].position);
         
         float cosine = dot(fromLightDir, spotlights[i].directional.direction);
@@ -120,9 +143,17 @@ void main() {
         lightAccumulare += spotlights[i].directional.color * (ambient + diffuse + specular);
     }
 
+    vec3 linear_out;
+
     vec4 base_color = sample_frag_color();
-    
-    vec3 linear_out = clamp(lightAccumulare * vec3(base_color), 0.0, 1.0);
+    if(base_color.rgb != vec3(0.0)){
+        linear_out = clamp(lightAccumulare * vec3(base_color), 0.0, 1.0);
+    }else{
+        if(shineThrough.spot){
+            linear_out = spotlights[shineThrough.idx].directional.color;
+        }else{
+            linear_out = directionals[shineThrough.idx].color;
+        }
+    }
     out_col = vec4(pow(linear_out.rgb, vec3(1.0/2.2)), base_color.a);
-    //out_col = vec4(norm.rgb, 1.0);
 }

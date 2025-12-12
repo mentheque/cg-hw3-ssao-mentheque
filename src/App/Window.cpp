@@ -13,6 +13,8 @@
 #include <numbers>
 #include <vector>
 
+#include "projectionPointSearch.h"
+
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -21,39 +23,6 @@
 
 namespace
 {
-
-constexpr std::array<GLfloat, 48u> cubeVecrticies = {
-	0.5, 0.5, 0.5, 1.0, 0.0, 0.0,
-	0.5, -0.5, 0.5, 0.0, 1.0, 0.0,
-	-0.5, -0.5, 0.5, 1.0, 1.0, 0.0,
-	-0.5, 0.5, 0.5, 0.0, 0.0, 1.0,
-	0.5, 0.5, -0.5, 1.0, 0.0, 1.0,
-	0.5, -0.5, -0.5, 0.0, 1.0, 1.0,
-	-0.5, -0.5, -0.5, 1.0, 1.0, 1.0,
-	-0.5, 0.5, -0.5, 0.1, 0.1, 0.1,
-};
-constexpr std::array<GLuint, 36u> cubeIndices = {
-	2, 1, 0,
-	3, 2, 0,
-	5, 6, 4,
-	6, 7, 4,
-	0, 1, 5,
-	0, 5, 4,
-	3, 0, 4,
-	3, 4, 7,
-	6, 3, 7,
-	2, 3, 6,
-	1, 2, 5,
-	2, 6, 5};
-
-constexpr std::array<GLfloat, 30u> modelTransfroms = {
-	1.0, 1.0, 1.0, 30.0, 50.0, 0.0,
-	3.0, 4.5, -10.0, 180.0, 60.0, 0.0,
-	-5.0, 6.0, -15.5, 90.0, 90.0, 90.0,
-	3.3, 3.0, -5.3, 180.0, 0.0, 0.0,
-	-2.3, 0.0, -4.1, 0.0, 0.0, 180.0
-};
-
 }// namespace
 
 Window::Window() noexcept
@@ -92,7 +61,6 @@ Window::~Window()
 	{
 		// Free resources with context bounded.
 		const auto guard = bindContext();
-		program_.reset();
 	}
 }
 
@@ -123,8 +91,8 @@ void Window::onInit()
 	lightUBO_.spot(1).color_ = {0, 1, 1};
 	lightUBO_.spot(1).direction_ = QVector3D(-1.0, -1.0, -1.0).normalized();
 	lightUBO_.spot(1).position_ = {2, 2, 2};
-	lightUBO_.spot(1).innerCutoff_ = std::cosf(19.5f * float(std::numbers::pi) / 180.0f);
-	lightUBO_.spot(1).outerCutoff_ = std::cosf(20.0f * float(std::numbers::pi) / 180.0f); 
+	lightUBO_.spot(1).innerCutoff_ = std::cosf(44.5f * float(std::numbers::pi) / 180.0f);
+	lightUBO_.spot(1).outerCutoff_ = std::cosf(45.0f * float(std::numbers::pi) / 180.0f); 
 	lightUBO_.spot(1).ambientStrength = 0.0;
 	lightUBO_.spot(1).diffuseStrength = 0.3;
 	lightUBO_.spot(1).specularStrength = 1.0;
@@ -139,19 +107,35 @@ void Window::onInit()
 	lightUBO_.bindToShader(chessProgram_, "LightSources");
 
 	chess_.setShaderProgram(chessProgram_);
-	chess_.loadFromGLTF(":/Models/default_material_cube.glb");
+	chess_.loadFromGLTF(":/Models/chess_2.glb");
+
+	//ProjectionPoint pj(10, 2);
+	//pj.setFaces(chess_.faces(0));
+	
+	//qDebug() << pj.find(chess_.bounds(0));
+	//qDebug() << pj.get();
 
 	chessInstance_.transform_.setToIdentity();
-	chessInstance_.transform_.scale(1.0);
+	chessInstance_.transform_.scale(6.0);
 	//chessInstance_.transform_.translate(1, 1, 1);
 
 	// LIGHT MODELS:
 	//----------------
-	directionalModel_.setShaderProgram(chessProgram_);
-	spotModel_.setShaderProgram(chessProgram_);
+	directionalProgram_ = std::make_shared<QOpenGLShaderProgram>();
+	directionalProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/model.vert");
+	directionalProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment,
+										   ":/Shaders/shineThrough.frag");
 
-	directionalModel_.loadFromGLTF(":/Models/default_material_cube.glb");
-	spotModel_.loadFromGLTF(":/Models/default_material_cube.glb");
+	spotProgram_ = std::make_shared<QOpenGLShaderProgram>();
+	spotProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/coneScaling.vert");
+	spotProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment,
+												 ":/Shaders/shineThrough.frag");
+
+	directionalModel_.setShaderProgram(directionalProgram_);
+	spotModel_.setShaderProgram(spotProgram_);
+
+	directionalModel_.loadFromGLTF(":/Models/blender_sphere.glb");
+	spotModel_.loadFromGLTF(":/Models/black_bottom_cone.glb");
 
 	directionalManager0_ = std::make_unique<lightModelManager<2, 2>>(&lightUBO_, LightType::Directional, 0,
 																	 &directionalModel_, "LightSources", -10.0);
@@ -169,49 +153,6 @@ void Window::onInit()
 	spotManager1_->scale(0.5);
 
 	//-----------------
-	
-	// Configure shaders
-	program_ = std::make_unique<QOpenGLShaderProgram>(this);
-	program_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/diffuse.vert");
-	program_->addShaderFromSourceFile(QOpenGLShader::Fragment,
-									  ":/Shaders/diffuse.frag");
-	program_->link();
-
-	// Create VAO object
-	vao_.create();
-	vao_.bind();
-
-	// Create VBO
-	vbo_.create();
-	vbo_.bind();
-	vbo_.setUsagePattern(QOpenGLBuffer::StaticDraw);
-	vbo_.allocate(cubeVecrticies.data(), static_cast<int>(cubeVecrticies.size() * sizeof(GLfloat)));
-
-	// Create IBO
-	ibo_.create();
-	ibo_.bind();
-	ibo_.setUsagePattern(QOpenGLBuffer::StaticDraw);
-	ibo_.allocate(cubeIndices.data(), static_cast<int>(cubeIndices.size() * sizeof(GLuint)));
-
-	// Bind attributes
-	program_->bind();
-
-	program_->enableAttributeArray(0);
-	program_->setAttributeBuffer(0, GL_FLOAT, 0, 3, static_cast<int>(6 * sizeof(GLfloat)));
-
-	program_->enableAttributeArray(1);
-	program_->setAttributeBuffer(1, GL_FLOAT, static_cast<int>(3 * sizeof(GLfloat)), 3,
-								 static_cast<int>(6 * sizeof(GLfloat)));
-
-	mvpUniform_ = program_->uniformLocation("mvp");
-
-	// Release all
-	program_->release();
-
-	vao_.release();
-
-	ibo_.release();
-	vbo_.release();
 
 	// Еnable depth test and face culling
 	glEnable(GL_DEPTH_TEST);
@@ -223,9 +164,6 @@ void Window::onInit()
 	// Clear all FBO buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	model_.setToIdentity();
-	rotary_.setToIdentity();
-
 	camera_.move(0, -3.0);
 }
 
@@ -235,15 +173,6 @@ void Window::onRender()
 
 	// Clear buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	//model_.rotate(5.0f, 1.0, 1.0, 0.2);
-	model_.setToIdentity();
-
-	// Bind VAO and shader program
-	program_->bind();
-	vao_.bind();
-
-	//chessInstance_.transform_.translate(0, 0, 0.01);
 
 	{
 		float speed = 0.01f;
@@ -277,28 +206,6 @@ void Window::onRender()
 
 		camera_.move(moveRight, moveForward);
 	}
-	
-	rotary_.rotate(5.0f, 1.0, 1.0, 0.2);
-	for (size_t i = 0; i < modelTransfroms.size() / 6; i++)
-	{
-		model_.setToIdentity();
-		model_.translate(modelTransfroms[i * 6], modelTransfroms[i * 6 + 1], modelTransfroms[i * 6 + 2]);
-		model_.rotate(modelTransfroms[i * 6 + 3],
-					  modelTransfroms[i * 6 + 3] / modelTransfroms[i * 6 + 3],
-					  modelTransfroms[i * 6 + 4] / modelTransfroms[i * 6 + 3],
-					  modelTransfroms[i * 6 + 5] / modelTransfroms[i * 6 + 3]);
-
-		const auto mvp = camera_.getProjection() * camera_.getView() * model_ * rotary_;
-		program_->setUniformValue(mvpUniform_, mvp);
-
-		// Draw
-		glDrawElements(GL_TRIANGLES, cubeIndices.size(), GL_UNSIGNED_INT, nullptr);
-	}
-
-	// Release VAO and shader program
-	vao_.release();
-	program_->release();
-
 
 	lightRotationCouner_ += 0.005;
 	lightUBO_.directional(0).direction_ = 
@@ -339,8 +246,7 @@ void Window::onResize(const size_t width, const size_t height)
 	const auto zNear = 0.1f;
 	const auto zFar = 100.0f;
 	const auto fov = 60.0f;
-	projection_.setToIdentity();
-	projection_.perspective(fov, aspect, zNear, zFar);
+
 	camera_.setPerspective(fov, aspect, zNear, zFar);
 }
 

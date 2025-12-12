@@ -9,6 +9,7 @@
 #include <tiny_gltf.h>
 
 #include "FpvCamera.h"
+#include "projectionPointSearch.h"
 
 #include <QDebug>
  
@@ -22,10 +23,10 @@ struct Vertex {
 };
 
 struct Primitive {
-	std::vector<Vertex> vertices;
-	std::vector<uint32_t> indices;
-	int textureIndex = -1;
-	int normalIndex = -1;
+	std::vector<Vertex> vertices_;
+	std::vector<uint32_t> indices_;
+	int textureIndex_ = -1;
+	int normalIndex_ = -1;
 
 	struct Material {
 		QVector4D baseColor;
@@ -81,6 +82,10 @@ private:
 	std::vector<std::unique_ptr<QOpenGLVertexArrayObject>> vaos_;
 
 	void setupMeshBuffers();
+
+public:
+	std::vector<Halfspace> faces(size_t meshIdx);
+	Cuboid bounds(size_t meshIdx);
 
 private:
 	GLint mvpUniform_ = -1;

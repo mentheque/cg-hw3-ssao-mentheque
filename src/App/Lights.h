@@ -175,6 +175,7 @@ class lightModelManager
 
 	GLint lightIdxUniform_ = -1;
 	GLint lightTypeUniform_ = -1;
+	GLint radiusUniform_ = -1;
 
 	float scale_ = 1.0;
 
@@ -203,8 +204,9 @@ public:
 		auto program = model_->getShaderProgram();
 		lights_->bindToShader(program, blockName);
 
-		lightIdxUniform_ = program->uniformLocation("light.idx");
-		lightTypeUniform_ = program->uniformLocation("light.type");
+		lightIdxUniform_ = program->uniformLocation("shineThrough.idx");
+		lightTypeUniform_ = program->uniformLocation("shineThrough.spot");
+		radiusUniform_ = program->uniformLocation("radius");
 	}
 
 	void changeModel(Model * model, const GLchar * blockName)
@@ -282,8 +284,18 @@ public:
 	{
 		if (lightIdxUniform_ >= 0 && lightTypeUniform_ >= 0) {
 			auto program = model_->getShaderProgram();
+			program->bind();
 			program->setUniformValue(lightIdxUniform_, (GLint)idx_);
 			program->setUniformValue(lightTypeUniform_, spot_);
+
+			if (radiusUniform_ >= 0 && spot_) {
+				float cos = lights_->spot(idx_).outerCutoff_; // outer for now 
+				float sin = std::sqrtf(1 - cos * cos);
+				float radius = 2 * (sin / cos); // base height of cone is 2
+				program->setUniformValue(radiusUniform_, radius);
+			}
+
+			program->release(); // excessive, but less room for mistakes I guess
 		}
 		model_->render(camera, {&instance_});
 	}
