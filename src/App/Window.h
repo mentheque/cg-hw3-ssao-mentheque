@@ -9,14 +9,22 @@
 #include <QOpenGLTexture>
 #include <QOpenGLVertexArrayObject>
 
+#include <QLineEdit>
+#include <QSlider>
+#include <QDial>
+
 #include <functional>
 #include <memory>
 #include <unordered_map>
+
+#include "Values.h"
 
 #include "FpvCamera.h"
 #include "KeyPressContainer.h"
 #include "Model.h"
 #include "Lights.h"
+
+#include "ColorButton.h"
 
 
 class Window final : public fgl::GLWidget
@@ -74,7 +82,7 @@ private:
 	std::shared_ptr<QOpenGLShaderProgram> chessProgram_;
 
 private:
-	LightUBOManager<2, 2> lightUBO_;
+	LightUBOManager<__DIRECTIONAL_COUNT__, __SPOT_COUNT__> lightUBO_;
 	float lightRotationCouner_ = 0.0;
 
 
@@ -84,11 +92,13 @@ private:
 
 	Model directionalModel_;
 	Model spotModel_;
-	std::unique_ptr<lightModelManager<2, 2>> directionalManager0_;
-	std::unique_ptr<lightModelManager<2, 2>> directionalManager1_;
-	std::unique_ptr<lightModelManager<2, 2>> spotManager0_;
-	std::unique_ptr<lightModelManager<2, 2>> spotManager1_;
 
+	std::vector<std::unique_ptr<__LIGHT_MODEL_M__>> directionalManagers_ =
+		std::vector<std::unique_ptr<__LIGHT_MODEL_M__>>(__DIRECTIONAL_COUNT__);
+	std::vector<bool> directionalAnimated_;
+	std::vector<std::unique_ptr<__LIGHT_MODEL_M__>> spotManagers_ =
+		std::vector<std::unique_ptr<__LIGHT_MODEL_M__>>(__SPOT_COUNT__);
+	std::vector<bool> spotAnimated_;
 private:
 
 	QElapsedTimer timer_;
@@ -99,4 +109,21 @@ private:
 	} ui_;
 
 	bool animated_ = true;
+
+private:
+
+	QVector3D cachedPos_ = {0.0, 0.0, 0.0};
+	QVector3D cachedDir_ = {0.0, 0.0, 0.0};
+
+	float cachedAngle_ = 15.5;
+
+	ColorButton * spotColor_;
+	float spotAmbient_ = 0.1;
+	float spotDiffuse_ = 0.8;
+	float spotSpecular_ = 0.5;
+
+	ColorButton * dirColor_;
+	float dirAmbient_ = 0.1;
+	float dirDiffuse_ = 0.8;
+	float dirSpecular_ = 0.5;
 };

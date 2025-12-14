@@ -11,7 +11,7 @@ void FpvCamera::setPerspective(float fov, float aspect, float near, float far){
 	updatePv_ = true;
 }
 
-const QVector3D & FpvCamera::directionVector()
+const QVector3D & FpvCamera::getDirection()
 {
 	if (updateDirection_)
 	{
@@ -25,7 +25,7 @@ const QVector3D & FpvCamera::directionVector()
 const QVector3D & FpvCamera::rightVector() {
 	if (updateRight_)
 	{
-		rightVector_ = QVector3D::crossProduct(directionVector(), up_).normalized();
+		rightVector_ = QVector3D::crossProduct(getDirection(), up_).normalized();
 		updateRight_ = false;
 	}
 	return rightVector_;
@@ -35,7 +35,7 @@ void FpvCamera::move(float right, float forward)
 {
 	if (right != 0 || forward != 0)
 	{
-		cameraPos_ += right * rightVector() + forward * directionVector();
+		cameraPos_ += right * rightVector() + forward * getDirection();
 		updateView_ = updatePv_ = true;
 	}
 }
@@ -59,7 +59,7 @@ const QMatrix4x4 & FpvCamera::getView()
 	if (updateView_)
 	{
 		view_.setToIdentity();
-		view_.lookAt(cameraPos_, cameraPos_ + directionVector(), up_);
+		view_.lookAt(cameraPos_, cameraPos_ + getDirection(), up_);
 		updateView_ = false;
 	}
 	return view_;
@@ -72,4 +72,8 @@ const QMatrix4x4& FpvCamera::getProjectionView() {
 		updatePv_ = false;
 	}
 	return projectionView_;
+}
+
+const QVector3D & FpvCamera::getPosition() {
+	return cameraPos_;
 }

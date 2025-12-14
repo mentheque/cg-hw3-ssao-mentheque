@@ -15,8 +15,9 @@ public:
 	void move(float right, float forward);
 	void rotate(float pitch, float yaw);
 
+	const QVector3D & getPosition(); 
+	const QVector3D & getDirection();
 private:
-	const QVector3D & directionVector();
 	const QVector3D & rightVector();
 
 	QVector3D directionVector_;

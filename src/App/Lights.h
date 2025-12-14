@@ -4,7 +4,7 @@
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLExtraFunctions>
 #include <QOpenGLBuffer>
-#include <QOpenGlShaderProgram>
+#include <QOpenGLShaderProgram>
 
 #include <memory>
 

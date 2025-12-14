@@ -2,8 +2,8 @@
 
 // Lighting controls: 
 // -----------------
-#define _directionalSize 2
-#define _spotSize 2
+#define _directionalSize 3
+#define _spotSize 4
 // -----------------
 
 struct ShineThrough{
