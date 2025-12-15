@@ -10,7 +10,6 @@
         <file>Shaders/shineThrough.frag</file>
         <file>Models/black_bottom_cone.glb</file>
         <file>Shaders/coneScaling.vert</file>
-        <file>Models/blender_yx.glb</file>
         <file>Shaders/pointBlowout.vert</file>
         <file>Models/bl_subdivided_cube.glb</file>
         <file>Models/blowfish2.glb</file>
