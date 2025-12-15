@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QVector3D>
-#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLExtraFunctions>
 #include <QOpenGLBuffer>
 #include <QOpenGLShaderProgram>
@@ -62,7 +61,7 @@ class LightUBOManager {
 	QOpenGLBuffer ubo_;
 	GLint bindingPoint_;
 
-	int err_;
+	int err_ = 0;
 public:
 	LightUBOManager(GLint bindingPoint)
 		: bindingPoint_(bindingPoint)
@@ -197,6 +196,7 @@ public:
 	{
 		ensureUBOBinding(blockName);
 		cachedColor_ = _deactivatedColor_;
+		update();
 	}
 
 	void ensureUBOBinding(const GLchar * blockName)

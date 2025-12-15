@@ -13,6 +13,7 @@
 #include <cmath>
 #include <numbers>
 #include <vector>
+#include <numbers>
 
 #include "projectionPointSearch.h"
 #include "utils.h"
@@ -34,22 +35,6 @@ Window::Window() noexcept
 	QWidget * settingsWidget = new QWidget(this);
 	settingsWidget->setStyleSheet("background-color: lightblue;");
 
-	/*
-	auto dialLabel = new QLabel(settingsWidget);
-	dialLabel->setText(tr("a: "));
-	auto animationDial = new QDial(settingsWidget);
-	animationDial->setRange(0, 999);
-	animationDial->setTracking(true);
-	animationDial->setWrapping(true);
-	animationDial->setInvertedAppearance(true);
-	connect(animationDial, &QDial::valueChanged, this, [=, this](int value) {
-		float mapped = mapSlider(value, 999, 250, 2 * std::numbers::pi);
-		//this->constant_ = QPointF{cos(mapped), sin(mapped)} * 0.7885f;
-	});
-	animationDial->setValue(250);
-	animationDial->update();
-	*/
-
 	auto posLabel = new QLabel(settingsWidget);
 	posLabel->setText(v3ToS("pos: ", cachedPos_));
 	auto dirLabel = new QLabel(settingsWidget);
@@ -66,7 +51,7 @@ Window::Window() noexcept
 	auto spotLabel = new QLabel(settingsWidget);
 	spotLabel->setText("spotLight: ");
 	QSlider * spotAngle = createSlider(settingsWidget,
-											  1000, 0, 70.0, &this->cachedAngle_, 100);
+											  1000, 0, 70.0, &this->cachedAngle_, 100, &this->spotChanged_);
 	spotColor_ = new ColorButton(settingsWidget);
 	spotColor_->setColor(Qt::white);
 	auto setSpotButton = new QPushButton(settingsWidget);
@@ -74,51 +59,88 @@ Window::Window() noexcept
 	connect(setSpotButton, &QPushButton::clicked, this, [=, this](int value) {
 		this->lightUBO_.spot(__USER_SPOT__).position_ = this->cachedPos_;
 		this->lightUBO_.spot(__USER_SPOT__).direction_ = this->cachedDir_;
-		this->lightUBO_.updateSpot(__USER_SPOT__);
+		spotChanged_ = true;
 	});
 
 	auto spotCoeffs = new QLabel(settingsWidget);
 	spotCoeffs->setText("Spot ambient, diffuse, spec.:");
 	QSlider * spotAmb = createSlider(settingsWidget,
-									   1000, 0, 1.0, &this->spotAmbient_, 0);
+									 1000, 0, 1.0, &this->spotAmbient_, 0, &this->spotChanged_);
 	spotAmb->setTickInterval(1000);
 	QSlider * spotDiff = createSlider(settingsWidget,
-									 1000, 0, 2.0, &this->spotDiffuse_, 800);
+									  1000, 0, 2.0, &this->spotDiffuse_, 400, &this->spotChanged_);
 	spotDiff->setTickInterval(500);
 
 	QSlider * spotSpec = createSlider(settingsWidget,
-									 1000, 0, 2.0, &this->spotSpecular_, 500);
+									  1000, 0, 2.0, &this->spotSpecular_, 250, &this->spotChanged_);
 	spotSpec->setTickInterval(500);
 
 	auto dirLightLabel = new QLabel(settingsWidget);
 	dirLightLabel->setText("directional light: ");
 	dirColor_ = new ColorButton(settingsWidget);
-	dirColor_->setColor(Qt::yellow);
+	dirColor_->setColor(Qt::black);
 	auto setDirButton = new QPushButton(settingsWidget);
 	setDirButton->setText("Set dir from cached");
 	connect(setDirButton, &QPushButton::clicked, this, [=, this](int value) {
 		this->lightUBO_.directional(__USER_DIR__).direction_ = this->cachedDir_;
-		this->lightUBO_.updateDirectional(__USER_DIR__);
+		dirChanged_ = true; 
 	});
 
 	auto dirCoeffs = new QLabel(settingsWidget);
 	dirCoeffs->setText("Dir ambient, diffuse, spec.:");
 	QSlider * dirAmb = createSlider(settingsWidget,
-									 1000, 0, 1.0, &this->dirAmbient_, 0);
+									1000, 0, 1.0, &this->dirAmbient_, 0, &this->dirChanged_);
 	dirAmb->setTickInterval(1000);
 	QSlider * dirDiff = createSlider(settingsWidget,
-									  1000, 0, 2.0, &this->dirDiffuse_, 800);
+									 1000, 0, 2.0, &this->dirDiffuse_, 400, &this->dirChanged_);
 	dirDiff->setTickInterval(500);
 
 	QSlider * dirSpec = createSlider(settingsWidget,
-									  1000, 0, 2.0, &this->dirSpecular_, 500);
+									 1000, 0, 2.0, &this->dirSpecular_, 150, &this->dirChanged_);
 	dirSpec->setTickInterval(500);
+
+
+	auto morphLabel = new QLabel(settingsWidget);
+	morphLabel->setText("Morph to sphere:");
+
+	auto mscaleLabel = new QLabel(settingsWidget);
+	mscaleLabel->setText("scale: ");
+	QSlider * morphScale = createSlider(settingsWidget,
+										   1000, 0, 40.0, &this->morphScale_, 10);
+	morphScale->setTickInterval(25);
+
+	auto morphModelButton = new QPushButton(settingsWidget);
+	morphModelButton->setText("Set model");
+	connect(morphModelButton, &QPushButton::clicked, this, [=, this](int value) {
+		QQuaternion rotation = QQuaternion::fromDirection(this->cachedDir_, {0, -1, 0}) *
+			QQuaternion::fromEulerAngles(0.0f, 90.0f, 180.0f); // for correct fish rotation
+		this->morphInstance_.transform_.setToIdentity();
+		this->morphInstance_.transform_.translate(this->cachedPos_);
+		this->morphInstance_.transform_.rotate(rotation);
+	});
+	auto morphPointButton = new QPushButton(settingsWidget);
+	morphPointButton->setText("Set point");
+	connect(morphPointButton, &QPushButton::clicked, this, [=, this](int value) {
+		QMatrix4x4 scaleAdjust;
+		scaleAdjust.setToIdentity();
+		scaleAdjust.scale(this->morphScale_);
+		QMatrix4x4 model = this->morphInstance_.transform_ * scaleAdjust;
+		this->morphPointModel_ = model.inverted() * this->cachedPos_;
+		this->morphRadius_ = this->morphModelBoundBox_.maxDistance(this->morphPointModel_);
+		qDebug() << "Is adecuate point: " << this->morphFacesChecking_.allContain(this->morphPointModel_);
+	});
+	QSlider * morphProgress = createSlider(settingsWidget,
+										   1000, 0, 1.0, &this->morphTransition_, 0);
+	morphProgress->setTickInterval(1000);
+
 
 	QFrame * hLine0 = new QFrame();
 	hLine0->setFrameShape(QFrame::HLine);
 	QFrame * hLine1 = new QFrame();
 	hLine1->setFrameShape(QFrame::HLine);
 	QFrame * hLine2 = new QFrame();
+	hLine2->setFrameShape(QFrame::HLine);
+	QFrame * hLine3 = new QFrame();
 	hLine2->setFrameShape(QFrame::HLine);
 
 	auto settingLayout = new QVBoxLayout();
@@ -146,10 +168,10 @@ Window::Window() noexcept
 	settingLayout->addWidget(dirSpec);
 	settingLayout->addWidget(hLine2);
 
-	// some AI-generated cpp template syntax sugar to make it work with array of arguments
-	//settingLayout->addLayout(std::apply([](auto... args) { return addAllH(args...); }, colorButtons));
-	//settingLayout->addLayout(addAllH(colorDecayLabel, colorDecaySlider));
-	//settingLayout->addLayout(addAllH(borderDecayLabel, borderDecaySlider));
+	settingLayout->addWidget(morphLabel);
+	settingLayout->addLayout(addAllH(mscaleLabel, morphScale));
+	settingLayout->addLayout(addAllH(morphModelButton, morphPointButton));
+	settingLayout->addWidget(morphProgress);
 
 	settingsWidget->setLayout(settingLayout);
 
@@ -174,9 +196,6 @@ Window::Window() noexcept
 		fps->setText(formatFPS(ui_.fps));
 	});
 
-	
-	//setFocusPolicy(Qt::StrongFocus);
-
 	holdKeys_.insert({Qt::Key_W, KeyPressContainer(Qt::Key_W)});
 	holdKeys_.insert({Qt::Key_S, KeyPressContainer(Qt::Key_S)});
 	holdKeys_.insert({Qt::Key_A, KeyPressContainer(Qt::Key_A)});
@@ -193,7 +212,8 @@ Window::~Window()
 
 void Window::onInit()
 {
-	qDebug() << sizeof(DirectionalLight) << " " << sizeof(SpotLight);
+	// Light source settings: 
+	// ---------------------
 	lightUBO_.directional(0).color_ = {0, 0, 1};
 	lightUBO_.directional(0).direction_ = QVector3D(0.0, -1.0, 0.0).normalized();
 	lightUBO_.directional(0).ambientStrength = 0.1;
@@ -206,48 +226,88 @@ void Window::onInit()
 	lightUBO_.directional(1).diffuseStrength = 0.8;
 	lightUBO_.directional(1).specularStrength = 0.5;
 
-	lightUBO_.spot(0).color_ = {1, 1, 0};
-	lightUBO_.spot(0).direction_ = QVector3D(0.0, -1.0, 0.0).normalized();
-	lightUBO_.spot(0).position_ = {1, 6, 1};
-	lightUBO_.spot(0).innerCutoff_ = cosFromDeg(12.5);
-	lightUBO_.spot(0).outerCutoff_ = cosFromDeg(13.0f); 
+	lightUBO_.spot(0).color_ = {0, 1, 1};
+	lightUBO_.spot(0).position_ = {1, 0.8, 0};
+	lightUBO_.spot(0).direction_ = QVector3D(-1, -0.8, 0).normalized();
+	lightUBO_.spot(0).innerCutoff_ = cosFromDeg(24.5f);
+	lightUBO_.spot(0).outerCutoff_ = cosFromDeg(25.0f); 
 	lightUBO_.spot(0).ambientStrength = 0.0;
-	lightUBO_.spot(0).diffuseStrength = 0.3;
+	lightUBO_.spot(0).diffuseStrength = 0.8;
 	lightUBO_.spot(0).specularStrength = 1.0;
 
-	lightUBO_.spot(1).color_ = {0, 1, 1};
-	lightUBO_.spot(1).direction_ = QVector3D(-1.0, -1.0, -1.0).normalized();
-	lightUBO_.spot(1).position_ = {2, 2, 2};
-	lightUBO_.spot(1).innerCutoff_ = cosFromDeg(44.5f);
-	lightUBO_.spot(1).outerCutoff_ = cosFromDeg(45.0f); 
+	lightUBO_.spot(1).color_ = {1, 1, 0};
+	lightUBO_.spot(1).position_ = {-1, 1, -1};
+	lightUBO_.spot(1).direction_ = QVector3D(1, -1, 1).normalized();
+	lightUBO_.spot(1).innerCutoff_ = cosFromDeg(9.5f);
+	lightUBO_.spot(1).outerCutoff_ = cosFromDeg(10.0f);
 	lightUBO_.spot(1).ambientStrength = 0.0;
-	lightUBO_.spot(1).diffuseStrength = 0.3;
+	lightUBO_.spot(1).diffuseStrength = 0.8;
 	lightUBO_.spot(1).specularStrength = 1.0;
+
+	lightUBO_.spot(2).color_ = {1, 0, 1};
+	lightUBO_.spot(2).position_ = {-1, 1, 1};
+	lightUBO_.spot(2).direction_ = QVector3D(1, -1, -1).normalized();
+	lightUBO_.spot(2).innerCutoff_ = cosFromDeg(9.5f);
+	lightUBO_.spot(2).outerCutoff_ = cosFromDeg(10.0f);
+	lightUBO_.spot(2).ambientStrength = 0.0;
+	lightUBO_.spot(2).diffuseStrength = 0.8;
+	lightUBO_.spot(2).specularStrength = 1.0;
+
+	for (size_t i = 0; i < 3; i++) {
+		lightUBO_.spot(i).position_ += {0.19, 0.0, -0.19};
+	}
 
 	lightUBO_.spot(__USER_SPOT__).ambientStrength = 0.0;
 	lightUBO_.spot(__USER_SPOT__).diffuseStrength = 0.3;
 	lightUBO_.spot(__USER_SPOT__).specularStrength = 1.0;
+	lightUBO_.spot(__USER_SPOT__).position_ = {0, 3, 0};
+	lightUBO_.spot(__USER_SPOT__).direction_ = QVector3D(0, 1.0, 0).normalized();
+
+	lightUBO_.directional(__USER_DIR__).direction_ = {0, -1, 0};
+
+	// ---------------------
 
 
+	// Non-light models 
+	// ---------------------
 	chessProgram_ = std::make_shared<QOpenGLShaderProgram>();
 	chessProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/model.vert");
 	chessProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment,
 											":/Shaders/model.frag");
 
-	lightUBO_.initialise();
-	lightUBO_.bindToShader(chessProgram_, "LightSources");
-
+	chessInstance_.transform_.setToIdentity();
+	chessInstance_.transform_.scale(6.0);
 	chess_.setShaderProgram(chessProgram_);
 	chess_.loadFromGLTF(":/Models/chess_2.glb");
 
-	//ProjectionPoint pj(10, 2);
-	//pj.setFaces(chess_.faces(0));
-	
-	//qDebug() << pj.find(chess_.bounds(0));
-	//qDebug() << pj.get();
+	morphProgram_ = std::make_shared<QOpenGLShaderProgram>();
+	morphProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/pointBlowout.vert");
+	morphProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment,
+										   ":/Shaders/model.frag");
+	morphInstance_.transform_.setToIdentity();
+	morphInstance_.transform_.translate(0, 5, 0);
+	morphModel_.setShaderProgram(morphProgram_);
+	morphModel_.loadFromGLTF(__MORPH_MODEL_FILE__);
 
-	chessInstance_.transform_.setToIdentity();
-	chessInstance_.transform_.scale(6.0);
+	morphModelBoundBox_ = morphModel_.bounds(0);
+	morphRadius_ = morphModelBoundBox_.maxDistance(morphPointModel_);
+	morphFacesChecking_.setFaces(morphModel_.faces(0));
+
+	morphProgram_->bind();
+	blowOutPointUniform_ = morphProgram_->uniformLocation("blowOutPoint");
+	transitionUniform_ = morphProgram_->uniformLocation("transition");
+	radiusUniform_ = morphProgram_->uniformLocation("radius");
+	morphProgram_->release();
+	// ---------------------
+
+	// Binding lights to non-light models
+	// ---------------------
+	lightUBO_.initialise();
+	lightUBO_.bindToShader(chessProgram_, "LightSources");
+	lightUBO_.bindToShader(morphProgram_, "LightSources");
+
+	// ---------------------
+
 
 	// LIGHT MODELS:
 	//----------------
@@ -274,6 +334,7 @@ void Window::onInit()
 			std::make_unique<__LIGHT_MODEL_M__>(&lightUBO_, LightType::Directional, i,
 			&directionalModel_, "LightSources", __DIR_LIGHT_OFFSET_);
 		directionalManagers_[i]->scale(5.0);
+		directionalManagers_[i]->update();
 	}
 
 	for (size_t i = 0; i < __SPOT_COUNT__; i++)
@@ -284,6 +345,7 @@ void Window::onInit()
 			std::make_unique<__LIGHT_MODEL_M__>(&lightUBO_, LightType::Spot, i,
 												&spotModel_, "LightSources", 0.0);
 		spotManagers_[i]->scale(0.5);
+		spotManagers_[i]->update();
 	}
 	
 	directionalAnimated_[0] = true;
@@ -301,19 +363,21 @@ void Window::onInit()
 	// Clear all FBO buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	camera_.move(0, -3.0);
+	camera_.setTransforms({3.80794859, 4.15898752, 5.50759220},
+		-0.330000490, 4.08237696);
 }
 
 void Window::onRender()
 {
 	const auto guard = captureMetrics();
+	qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 
 	// Clear buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	// Camera movement
 	{
 		float speed = 0.01f;
-		qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 
 		KeyPressContainer & kW = holdKeys_.at(Qt::Key_W);
 		KeyPressContainer & kS = holdKeys_.at(Qt::Key_S);
@@ -344,50 +408,76 @@ void Window::onRender()
 		camera_.move(moveRight, moveForward);
 	}
 
-	lightRotationCouner_ += 0.005;
+
+	// Updating revolving directional light models
+	float angleRad = 2 * std::numbers::pi 
+		* float(currentTime % __ONE_REVOLUTION_PER_) / float(__ONE_REVOLUTION_PER_);
+
 	lightUBO_.directional(0).direction_ = 
-		QVector3D(0.0, -std::sinf(lightRotationCouner_), -std::cosf(lightRotationCouner_)).normalized();
+		QVector3D(0.0, -std::sinf(angleRad), -std::cosf(angleRad)).normalized();
 	lightUBO_.directional(1).direction_ =
-		QVector3D(-std::sinf(lightRotationCouner_), -std::cosf(lightRotationCouner_), 0.0).normalized();
+		QVector3D(-std::sinf(angleRad), -std::cosf(angleRad), 0.0).normalized();
 	lightUBO_.updateDirectional(0);
 	lightUBO_.updateDirectional(1);
 
+	// Updating user controlled lights on change: 
+	if (spotChanged_
+		|| colorToV3(spotColor_->getColor()) != lightUBO_.spot(__USER_SPOT__).color_)
+	{
+		lightUBO_.spot(__USER_SPOT__).color_ = colorToV3(spotColor_->getColor());
+		lightUBO_.spot(__USER_SPOT__).outerCutoff_ = cosFromDeg(cachedAngle_ + 1.0);
+		lightUBO_.spot(__USER_SPOT__).innerCutoff_ = cosFromDeg(cachedAngle_ + 0.5);
+		lightUBO_.spot(__USER_SPOT__).ambientStrength = spotAmbient_;
+		lightUBO_.spot(__USER_SPOT__).diffuseStrength = spotDiffuse_;
+		lightUBO_.spot(__USER_SPOT__).specularStrength = spotSpecular_;
+		lightUBO_.updateSpot(__USER_SPOT__);
+		spotManagers_[__USER_SPOT__]->update();
+
+		spotChanged_ = false;
+	}
+	if (dirChanged_
+		|| colorToV3(dirColor_->getColor()) != lightUBO_.directional(__USER_DIR__).color_)
+	{
+		lightUBO_.directional(__USER_DIR__).color_ = colorToV3(dirColor_->getColor());
+		lightUBO_.directional(__USER_DIR__).ambientStrength = dirAmbient_;
+		lightUBO_.directional(__USER_DIR__).diffuseStrength = dirDiffuse_;
+		lightUBO_.directional(__USER_DIR__).specularStrength = dirSpecular_;
+		lightUBO_.updateDirectional(__USER_DIR__);
+
+		directionalManagers_[__USER_DIR__]->update();
+	}
+
+	// Updating models of animated lights, rendering all
 	for (size_t i = 0; i < __DIRECTIONAL_COUNT__; i++) {
 		if (directionalAnimated_[i]) {
 			directionalManagers_[i]->update();
-			directionalManagers_[i]->render(camera_);
 		}
+		directionalManagers_[i]->render(camera_);
 	}
 	for (size_t i = 0; i < __SPOT_COUNT__; i++)
 	{
 		if (spotAnimated_[i])
 		{
 			spotManagers_[i]->update();
-			spotManagers_[i]->render(camera_);
 		}
+		spotManagers_[i]->render(camera_);
 	}
 
-	lightUBO_.spot(__USER_SPOT__).color_ = colorToV3(spotColor_->getColor());
-	lightUBO_.spot(__USER_SPOT__).outerCutoff_ = cosFromDeg(cachedAngle_ + 1.0);
-	lightUBO_.spot(__USER_SPOT__).innerCutoff_ = cosFromDeg(cachedAngle_ + 0.5);
-	lightUBO_.spot(__USER_SPOT__).ambientStrength = spotAmbient_;
-	lightUBO_.spot(__USER_SPOT__).diffuseStrength = spotDiffuse_;
-	lightUBO_.spot(__USER_SPOT__).specularStrength = spotSpecular_;
-	lightUBO_.updateSpot(__USER_SPOT__);
-
-	spotManagers_[__USER_SPOT__]->update();
-	spotManagers_[__USER_SPOT__]->render(camera_);
-
-	lightUBO_.directional(__USER_DIR__).color_ = colorToV3(dirColor_->getColor());
-	lightUBO_.directional(__USER_DIR__).ambientStrength = dirAmbient_;
-	lightUBO_.directional(__USER_DIR__).diffuseStrength = dirDiffuse_;
-	lightUBO_.directional(__USER_DIR__).specularStrength = dirSpecular_;
-	lightUBO_.updateDirectional(__USER_DIR__);
-
-	directionalManagers_[__USER_DIR__]->update();
-	directionalManagers_[__USER_DIR__]->render(camera_);
-
+	// Rendering other models
 	chess_.render(camera_, {&chessInstance_});
+
+	morphProgram_->bind();
+	morphProgram_->setUniformValue(blowOutPointUniform_, morphPointModel_);
+	morphProgram_->setUniformValue(transitionUniform_, morphTransition_);
+	morphProgram_->setUniformValue(radiusUniform_, morphRadius_);
+	morphProgram_->release();
+
+	QMatrix4x4 scaleAdjust;
+	scaleAdjust.setToIdentity();
+	scaleAdjust.scale(this->morphScale_);
+	Instance scaledMorph = {morphInstance_.transform_ * scaleAdjust};
+
+	morphModel_.render(camera_, {&scaledMorph});
 
 	++frameCount_;
 

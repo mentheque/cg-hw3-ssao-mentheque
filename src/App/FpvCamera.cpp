@@ -77,3 +77,14 @@ const QMatrix4x4& FpvCamera::getProjectionView() {
 const QVector3D & FpvCamera::getPosition() {
 	return cameraPos_;
 }
+
+void FpvCamera::setTransforms(const QVector3D & pos, float pitch, float yaw){
+	cameraPos_ = pos;
+	pitch_ = pitch;
+	yaw_ = yaw;
+
+	updateDirection_ = true;
+	updateRight_ = true;
+	updatePv_ = true;
+	updateView_ = true;
+}

@@ -44,6 +44,12 @@ QSlider * createSlider(QWidget * parent, int maximum, int newRangeZeroAt,
 QSlider * createSlider(QWidget * parent, int maximum, int newRangeZeroAt,
 	float newRangeLen, GLfloat * mapTo);
 
+
+// Creates new slider, and maps it's value on update into mapTo using mapSlider
+// Default value is same as newRangeZeroAt. Sets updated to true on change. 
+QSlider * createSlider(QWidget * parent, int maximum, int newRangeZeroAt,
+					   float newRangeLen, GLfloat * mapTo, int defaultFalue, bool * updated);
+
 QString v3ToS(QString prefix, QVector3D vec);
 
 QVector3D colorToV3(QColor color);

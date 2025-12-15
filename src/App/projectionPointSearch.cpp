@@ -55,6 +55,43 @@ QVector3D Cuboid::center() const {
 	return (min_ + max_) / 2;
 }
 
+std::vector<Cuboid> Cuboid::partition(size_t partitions) const
+{
+	QVector3D inc = (max_ - min_) / partitions;
+
+	std::vector<Cuboid> out;
+
+	// may do 1 extra iteration in each, but not worsens actual search
+	for (float minx = 0; minx < max_.x(); minx += inc.x())
+	{
+		for (float miny = 0; miny < max_.y(); miny += inc.y())
+		{
+			for (float minz = 0; minz < max_.z(); minz += inc.z())
+			{
+				QVector3D imin = {minx, miny, minz};
+				out.push_back({imin, imin + inc});
+			}
+		}
+	}
+
+	return out;
+}
+
+float Cuboid::size() const {
+	return (max_ - min_).length();
+}
+
+float Cuboid::maxDistance(QVector3D x) {
+	float max = 0;
+	for (size_t i = 0; i < 8; i++) {
+		float distance = point(i).distanceToPoint(x);
+		if (distance > max) {
+			max = distance;
+		}
+	}
+	return max;
+}
+
 Halfspace::Halfspace(QVector3D norm, QVector3D point)
 	: norm_(norm)
 	, point_(point)

@@ -5,11 +5,6 @@
 #include <QColorSpace>
 #include <filesystem>
 
-/*
-	Окей, то есть меш у нас все-таки примитив, то есть мы вызываем glDrawTriangles для каждого
-	треугольника?..
-*/
-
 Model::Model() {}
 
 void Model::setShaderProgram(std::shared_ptr<QOpenGLShaderProgram> program) {
@@ -25,7 +20,8 @@ void Model::setShaderProgram(std::shared_ptr<QOpenGLShaderProgram> program) {
 		material_baseColorUniform_ = program->uniformLocation("material.base_color");
 		material_hasTextureUniform_ = program->uniformLocation("material.has_texture");
 		material_hasNormalUniform_ = program->uniformLocation("material.has_normalMap");
-
+		diffuseTextureUniform_ = program->uniformLocation("diffuse_texture"),
+		normalTextureUniform_ = program->uniformLocation("normal_texture");
 		program->release();
 	}
 }
@@ -36,7 +32,7 @@ std::shared_ptr<QOpenGLShaderProgram> Model::getShaderProgram() {
 
 
 bool Model::loadFromGLTF(const QString& filePath) {
-	qDebug() << "started loading\n";
+	qDebug() << "started loading\n" << filePath;
 
 	QFile modelFile(filePath);
 	if (!modelFile.open(QIODevice::ReadOnly))
@@ -339,8 +335,8 @@ void Model::render(FpvCamera & camera, std::vector<Instance *> instances)
 
 	shaderProgram_->bind();
 
-	shaderProgram_->setUniformValue("diffuse_texture", 0);// sampler2D uses texture unit index
-	shaderProgram_->setUniformValue("normal_texture", 1);
+	shaderProgram_->setUniformValue(diffuseTextureUniform_, 0);
+	shaderProgram_->setUniformValue(normalTextureUniform_, 1);
 
 	if (cameraPosUniform_ >= 0)
 		shaderProgram_->setUniformValue(cameraPosUniform_, camera.getView().inverted().column(3).toVector3D());
@@ -366,7 +362,7 @@ void Model::render(FpvCamera& camera) {
 
 // Assuming shaderProgram and camera related stuff is already set up? 
 void Model::renderNode(FpvCamera& camera, tinygltf::Node node, QMatrix4x4 transform) {
-	// TODO: pass pv matrix initially and see how performance improoves compared to 
+	// TODO: pass pv matrix initially and see if performance improoves compared to 
 	// calculating it here and passing there each mesh.
 
 	if (!node.matrix.empty()) {
@@ -474,8 +470,6 @@ std::vector<Halfspace> Model::faces(size_t meshIdx)
 
 				QVector3D norm = -QVector3D::crossProduct((b - a), (c - a)).normalized();
 
-				qDebug() << a << norm;
-
 				out.push_back(Halfspace(norm, a));
 			}
 		}
@@ -493,8 +487,6 @@ std::vector<Halfspace> Model::faces(size_t meshIdx)
 				QVector3D c = {cSource[0], cSource[1], cSource[2]};
 
 				QVector3D norm = -QVector3D::crossProduct((b - a), (c - a)).normalized();
-
-				qDebug() << a << norm;
 
 				out.push_back(Halfspace(norm, a));
 			}

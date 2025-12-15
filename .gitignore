@@ -4,3 +4,10 @@ cmake-build-*
 .vs
 out
 *Presets.json
+/src/App/Models/blender_projection_to_one_side.glb
+/src/App/Models/blender_no_projection.glb
+/src/App/Models/blowfish.glb
+/src/App/Models/blender_yx.glb
+/src/App/Models/Box.glb
+/src/App/Models/chess.glb
+/src/App/Models/normal_map_test.glb

@@ -75,11 +75,11 @@ vec4 sample_frag_color(){
 
 void main() {
     vec3 norm = normalize(frag_normal);
-    if(false /*material.has_normalMap*/){
+    if(material.has_normalMap){
         vec3 fN = normalize(N);
         vec3 fT = normalize(T);
         fT = normalize(fT - dot(fT, fN) * fN);
-        vec3 fB = cross(fN, fT) * handednes;
+        vec3 fB = normalize(cross(fN, fT)) * handednes;
 
         mat3 TBN = mat3(fT, fB, fN);
 

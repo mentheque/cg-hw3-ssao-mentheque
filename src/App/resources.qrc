@@ -1,23 +1,19 @@
 <RCC>
     <qresource prefix="/">
-        <file>Textures/voronoi.png</file>
-        <file>Shaders/diffuse.frag</file>
-        <file>Shaders/diffuse.vert</file>
         <file>Shaders/model.frag</file>
         <file>Shaders/model.vert</file>
         <file>Models/BoxInterleaved.glb</file>
         <file>Models/BoxTextured.glb</file>
         <file>Models/Duck.glb</file>
-        <file>Models/DamagedHelmet.glb</file>
         <file>Models/chess_2.glb</file>
-        <file>Models/Box.glb</file>
-        <file>Models/blender_sphere.glb</file>
         <file>Models/default_material_cube.glb</file>
         <file>Shaders/shineThrough.frag</file>
         <file>Models/black_bottom_cone.glb</file>
         <file>Shaders/coneScaling.vert</file>
-        <file>Models/blender_no_projection.glb</file>
-        <file>Models/blender_projection_to_one_side.glb</file>
         <file>Models/blender_yx.glb</file>
+        <file>Shaders/pointBlowout.vert</file>
+        <file>Models/bl_subdivided_cube.glb</file>
+        <file>Models/blowfish2.glb</file>
+        <file>Models/blender_sphere.glb</file>
     </qresource>
 </RCC>

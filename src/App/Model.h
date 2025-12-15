@@ -96,6 +96,8 @@ private:
 	GLint material_hasTextureUniform_ = -1;
 	GLint material_hasNormalUniform_ = -1;
 
+	GLint diffuseTextureUniform_ = -1;
+	GLint normalTextureUniform_ = -1;
 private:
 	template<typename T>
 	class BufferReader

@@ -32,6 +32,16 @@ QSlider * createSlider(QWidget * parent, int maximum, int newRangeZeroAt,
 	return slider;
 }
 
+QSlider* createSlider(QWidget* parent, int maximum, int newRangeZeroAt,
+	float newRangeLen, GLfloat* mapTo, int defaultValue, bool* updated) {
+	QSlider * slider = createSlider(parent, maximum, newRangeZeroAt,
+		newRangeLen, mapTo, defaultValue);
+	QObject::connect(slider, &QSlider::valueChanged, [=](int value) {
+		(*updated) = true;
+	});
+	return slider;
+}
+
 
 QSlider* createSlider(QWidget* parent, int maximum,
 	int newRangeZeroAt, float newRangeLen, GLfloat* mapTo) {

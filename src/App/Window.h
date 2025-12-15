@@ -121,9 +121,26 @@ private:
 	float spotAmbient_ = 0.1;
 	float spotDiffuse_ = 0.8;
 	float spotSpecular_ = 0.5;
+	bool spotChanged_ = true;
 
 	ColorButton * dirColor_;
 	float dirAmbient_ = 0.1;
 	float dirDiffuse_ = 0.8;
 	float dirSpecular_ = 0.5;
+	bool dirChanged_ = true;
+
+
+	std::shared_ptr<QOpenGLShaderProgram> morphProgram_;
+	Model morphModel_;
+	Cuboid morphModelBoundBox_ = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
+	ProjectionPoint morphFacesChecking_ = {0, 0};
+	Instance morphInstance_;
+	float morphScale_ = 5.0;
+	QVector3D morphPointModel_ = {0.0, 0.0, 0.0};
+	float morphRadius_ = 1.0;
+	float morphTransition_ = 0.0;
+
+	GLint blowOutPointUniform_ = -1;
+	GLint transitionUniform_ = -1;
+	GLint radiusUniform_ = -1;
 };
