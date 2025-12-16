@@ -1,13 +1,31 @@
 ![build_cmake_status](https://github.com/sadads1337/mse-gl-hw-template/actions/workflows/build_cmake.yml/badge.svg)
 
-# ITMO MSE OpenGL homework template 2022
+# ITMO HW2 Morph
 
-Qt based demo project to demonstrate how to use and implement basic 3D graphics features.
-No optimizations exists. Use only for educational purposes.
+Some basic gltf model morphing and displaying with phong lighting.
 
-## Purposes
+Created from [provided template](https://github.com/sadads1337/mse-gl-hw-template), Build, 3d-party libs and requirements are from there. 
 
-Help students with their submission is the main goal of this repository. Do not use this code in production!!!
+
+<img width="981" height="987" alt="image" src="https://github.com/user-attachments/assets/ba053980-ce5b-401c-b901-c144d3986b1c" />
+
+## Functionality
+
+- loading models from .glb files. Supported: node structure, diffuse textures + base color, normal maps with tangent attributes included.
+- Phong lighting: Directional lights and spot lights. Some classes to streamline creating fixed set of lights.
+- Morphing: mapping model to a sphere from a point.
+- FPV camera controlled by mouse movement and WASD
+
+## User guide
+
+- Left click to capture mouse, right click/esc to release. 
+- Press "capture" to cache position and direction of the camera.
+- Cached data is used for "set" buttons.
+- Some sliders may be better controlled with arrow keys for smoothness.
+
+## Комментарии
+
+- chess_2 это переупакованная без draco дефолтная моделька.
 
 ## Requirements
 
