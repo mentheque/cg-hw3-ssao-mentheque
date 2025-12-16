@@ -1,5 +1,6 @@
 #include "FpvCamera.h"
 #include <algorithm>
+#include <cmath>
 
 FpvCamera::FpvCamera() {
 	projection_.perspective(60.0, 1.0, 0.1, 100);
@@ -15,7 +16,8 @@ const QVector3D & FpvCamera::getDirection()
 {
 	if (updateDirection_)
 	{
-		directionVector_ = {cos(yaw_) * cos(pitch_), sin(pitch_), sin(yaw_) * cos(pitch_)};
+		directionVector_ = {std::cos(yaw_) * std::cos(pitch_), std::sin(pitch_),
+			std::sin(yaw_) * std::cos(pitch_)};
 		directionVector_.normalize();
 		updateDirection_ = false;
 	}

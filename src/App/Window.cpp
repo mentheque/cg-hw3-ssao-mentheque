@@ -414,9 +414,9 @@ void Window::onRender()
 		* float(currentTime % __ONE_REVOLUTION_PER_) / float(__ONE_REVOLUTION_PER_);
 
 	lightUBO_.directional(0).direction_ = 
-		QVector3D(0.0, -std::sinf(angleRad), -std::cosf(angleRad)).normalized();
+		QVector3D(0.0, -std::sin(angleRad), -std::cos(angleRad)).normalized();
 	lightUBO_.directional(1).direction_ =
-		QVector3D(-std::sinf(angleRad), -std::cosf(angleRad), 0.0).normalized();
+		QVector3D(-std::sin(angleRad), -std::cos(angleRad), 0.0).normalized();
 	lightUBO_.updateDirectional(0);
 	lightUBO_.updateDirectional(1);
 

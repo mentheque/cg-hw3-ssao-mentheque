@@ -2,6 +2,7 @@
 
 #include <QDebug>
 #include <numbers>
+#include <cmath>
 
 QLayout * addAll(QLayout * addTo)
 {
@@ -66,5 +67,5 @@ QVector3D colorToV3(QColor color)
 }
 
 float cosFromDeg(float deg) {
-	return std::cosf(deg * float(std::numbers::pi) / 180.0f);
+	return std::cos(deg * float(std::numbers::pi) / 180.0f);
 }
