@@ -6,7 +6,7 @@
 #include <QOpenGLShaderProgram>
 
 #include <memory>
-#include <cmath>
+#include <math.h>
 
 #include "Model.h"
 #include "FpvCamera.h"
