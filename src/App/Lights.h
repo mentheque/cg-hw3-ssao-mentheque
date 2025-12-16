@@ -6,7 +6,7 @@
 #include <QOpenGLShaderProgram>
 
 #include <memory>
-#include <math.h>
+#include <cmath>
 
 #include "Model.h"
 #include "FpvCamera.h"
@@ -291,7 +291,7 @@ public:
 
 			if (radiusUniform_ >= 0 && spot_) {
 				float cos = lights_->spot(idx_).outerCutoff_; // outer for now 
-				float sin = std::sqrtf(1 - cos * cos);
+				float sin = std::sqrt(1 - cos * cos);
 				float radius = 2 * (sin / cos); // base height of cone is 2
 				program->setUniformValue(radiusUniform_, radius);
 			}
