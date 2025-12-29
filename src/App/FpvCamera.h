@@ -29,6 +29,15 @@ private:
 	bool updateRight_ = true;
 
 private:
+	float gAspect_;
+	float gTanHalfFOV_; 
+public:
+	float getAspect();
+	float getTanHalfFov();
+	float getNear();
+	float getFar();
+
+private:
 	QVector3D cameraPos_ = {0.0, 0.0, -3.0};
 	float pitch_ = 0;
 	float yaw_ = -1.5708;

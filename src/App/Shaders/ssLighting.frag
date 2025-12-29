@@ -1,4 +1,4 @@
-#version 330 core
+#version 330
 
 // Lighting controls: 
 // -----------------
@@ -6,27 +6,27 @@
 #define _spotSize 4
 // -----------------
 
-in vec3 frag_normal;
 in vec2 tex_coord;
+in vec2 view_ray;
 
-layout (location = 0) out vec4 out_col;
+out vec4 out_col;
 
-uniform sampler2D diffuse_texture;
-uniform sampler2D normal_texture;
+uniform sampler2D diffuseTex;
+uniform sampler2D depthTex;
+uniform sampler2D normalTex;
+uniform sampler2D positionTex;
 
-uniform vec3 camera_pos_world;
-in vec3 frag_pos_world;
+uniform mat4 projection;
 
-in vec3 N;
-in vec3 T;
-in float handednes;
+const int MAX_KERNEL_SIZE = 64;
+uniform vec3 sampleKernel[MAX_KERNEL_SIZE];
 
-struct Material{
-    vec4 base_color;
-    bool has_texture;
-    bool has_normalMap;
-};
-uniform Material material;
+uniform mat4 invView;
+uniform mat4 invProj;
+uniform float nearPlane;
+uniform float farPlane;
+
+uniform vec3 cameraPosWorld;
 
 layout (std140) uniform LightSources {
     struct DirectionalLight{
@@ -45,43 +45,52 @@ layout (std140) uniform LightSources {
     } spotlights[_spotSize];
 };
 
-//out vec4 out_col;
-
-vec4 sample_frag_color(){
-    vec4 tex_color = texture(diffuse_texture, tex_coord);
-    tex_color.a = 1.0;
-
-    vec4 base_color = material.base_color;
-
-    if(material.has_texture){
-        base_color *= tex_color;
-    }
-
-    return base_color;
+float calc_viewZ(vec2 coords)
+{
+    float depth = texture(depthTex, coords).r;
+    return projection[3][2] / (2 * depth -1 - projection[2][2]);
 }
 
-void main() {
-    vec3 norm = normalize(frag_normal);
-    if(material.has_normalMap){
-        vec3 fN = normalize(N);
-        vec3 fT = normalize(T);
-        fT = normalize(fT - dot(fT, fN) * fN);
-        vec3 fB = normalize(cross(fN, fT)) * handednes;
+vec3 get_world_pos(vec3 view_pos){
+    vec4 world_pos = invView * vec4(view_pos, 1.0);
+    return world_pos.xyz / world_pos.w;
+}
 
-        mat3 TBN = mat3(fT, fB, fN);
+float linearize_depth(float depth)
+{
+    float z_n = 2.0 * depth - 1.0;
+    return (2.0 * nearPlane * farPlane) / (farPlane + nearPlane - z_n * (farPlane - nearPlane));
+}
 
-        norm = texture(normal_texture, tex_coord).rgb;
-        norm = normalize(norm * 2.0 - 1.0);   
-        norm = normalize(TBN * norm);
-    }
+vec3 reconstruct_world_position(vec2 texCoord, float depth, vec2 ray)
+{
+    float linearDepth = linearize_depth(depth);
+    vec3 viewPos = vec3(ray * linearDepth, linearDepth);
+    vec4 worldPos = invView * vec4(viewPos, 1.0);
+    return worldPos.xyz;
+}
 
+
+void main()
+{
+    float viewZ = calc_viewZ(tex_coord);
+
+    float viewX = view_ray.x * viewZ;
+    float viewY = view_ray.y * viewZ;
+
+    vec3 view_pos = vec3(viewX, viewY, viewZ);
+    vec3 frag_pos_world = texture(positionTex, tex_coord).xyz;
+    vec3 norm = texture(normalTex, tex_coord).xyz;
+    vec4 base_color = texture(diffuseTex, tex_coord).rgba;
+
+    
     float ambient;
     float diffuse;
     float specular;
 
     vec3 lightAccumulare = vec3(0.0, 0.0, 0.0);
 
-    vec3 viewDir = normalize(camera_pos_world - frag_pos_world);
+    vec3 viewDir = normalize(cameraPosWorld - frag_pos_world);
 
     for(int i = 0;i < _directionalSize;i++){
         ambient = directionals[i].ambientStrength;
@@ -121,10 +130,8 @@ void main() {
 
         lightAccumulare += spotlights[i].directional.color * (ambient + diffuse + specular);
     }
-
-    vec4 base_color = sample_frag_color();
     
     vec3 linear_out = clamp(lightAccumulare * vec3(base_color), 0.0, 1.0);
-    out_col = vec4(pow(linear_out.rgb, vec3(1.0/2.2)), base_color.a);
-    //out_col = vec4(norm.rgb, 1.0);
+    out_col = vec4(pow(linear_out.rgb, vec3(1.0/2.2)), 1.0); // deal with alpha later
+    //out_col = base_color;
 }

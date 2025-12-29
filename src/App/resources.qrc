@@ -14,5 +14,13 @@
         <file>Models/bl_subdivided_cube.glb</file>
         <file>Models/blowfish2.glb</file>
         <file>Models/blender_sphere.glb</file>
+        <file>Shaders/ssSimple.frag</file>
+        <file>Shaders/ssSimple.vert</file>
+        <file>Shaders/ssDepthReading.frag</file>
+        <file>Shaders/gbuffModel.frag</file>
+        <file>Shaders/gbuffShineThrough.frag</file>
+        <file>Shaders/ssNormal.frag</file>
+        <file>Shaders/ssLighting.frag</file>
+        <file>Shaders/ssLighting.vert</file>
     </qresource>
 </RCC>

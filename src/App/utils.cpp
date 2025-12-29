@@ -4,6 +4,53 @@
 #include <numbers>
 #include <cmath>
 
+void saveTextureToFile(QOpenGLTexture * texture, const QString & filename)
+{
+	qDebug() << "=== SAVE TEXTURE DEBUG ===";
+
+	if (!texture)
+	{
+		qDebug() << "Texture is null!";
+		return;
+	}
+	if (!texture->isCreated())
+	{
+		qDebug() << "Texture is not created!";
+		return;
+	}
+
+	qDebug() << "Texture ID:" << texture->textureId();
+	qDebug() << "Texture size:" << texture->width() << "x" << texture->height();
+	qDebug() << "Texture format:" << texture->format();
+
+	if (!texture || !texture->isCreated())
+		return;
+
+	int width = texture->width();
+	int height = texture->height();
+
+	// Create temporary FBO to read from texture
+	QOpenGLFramebufferObject fbo(width, height);
+	fbo.bind();
+
+	auto gl = QOpenGLContext::currentContext()->functions();
+	gl->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+							   GL_TEXTURE_2D, texture->textureId(), 0);
+
+	// Read pixels from FBO
+	QImage image(width, height, QImage::Format_RGBA8888);
+	gl->glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, image.bits());
+
+	// Flip vertically (OpenGL has origin at bottom-left)
+	image = image.mirrored(false, true);
+
+	fbo.release();
+
+	// Save to file
+	image.save(filename);
+	qDebug() << "Saved texture to:" << filename;
+}
+
 QLayout * addAll(QLayout * addTo)
 {
 	return addTo;
@@ -66,6 +113,10 @@ QVector3D colorToV3(QColor color)
 	return out;
 }
 
+float radFromDeg(float deg) {
+	return deg * float(std::numbers::pi) / 180.0f;
+}
+
 float cosFromDeg(float deg) {
-	return std::cos(deg * float(std::numbers::pi) / 180.0f);
+	return std::cos(radFromDeg(deg));
 }

@@ -58,7 +58,8 @@ layout (std140) uniform LightSources {
     } spotlights[_spotSize];
 };
 
-out vec4 out_col;
+//out vec4 out_col;
+layout (location = 0) out vec4 out_col;
 
 vec4 sample_frag_color(){
     vec4 tex_color = texture(diffuse_texture, tex_coord);

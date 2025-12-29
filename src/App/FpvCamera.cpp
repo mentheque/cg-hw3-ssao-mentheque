@@ -2,14 +2,37 @@
 #include <algorithm>
 #include <cmath>
 
+#include "utils.h"
+
 FpvCamera::FpvCamera() {
 	projection_.perspective(60.0, 1.0, 0.1, 100);
 }
 
-void FpvCamera::setPerspective(float fov, float aspect, float near, float far){
+void FpvCamera::setPerspective(float fov, float aspect, float near_, float far_){
 	projection_.setToIdentity();
-	projection_.perspective(fov, aspect, near, far);
+	projection_.perspective(fov, aspect, near_, far_);
 	updatePv_ = true;
+
+	gAspect_ = aspect;
+	gTanHalfFOV_ = std::tan(radFromDeg(fov / 2));
+}
+
+float FpvCamera::getAspect() {
+	return gAspect_;
+}
+float FpvCamera::getTanHalfFov()
+{
+	return gTanHalfFOV_;
+}
+
+float FpvCamera::getNear()
+{
+	return 0.1f;
+}
+
+float FpvCamera::getFar()
+{
+	return 100.0f;
 }
 
 const QVector3D & FpvCamera::getDirection()

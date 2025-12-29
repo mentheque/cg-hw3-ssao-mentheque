@@ -10,6 +10,7 @@
 
 #include "Model.h"
 #include "FpvCamera.h"
+#include "Values.h"
 
 struct DirectionalLight
 {
@@ -174,7 +175,6 @@ class lightModelManager
 	float directionalOffset_ = 0.0;
 
 	GLint lightIdxUniform_ = -1;
-	GLint lightTypeUniform_ = -1;
 	GLint radiusUniform_ = -1;
 
 	float scale_ = 1.0;
@@ -206,7 +206,6 @@ public:
 		lights_->bindToShader(program, blockName);
 
 		lightIdxUniform_ = program->uniformLocation("shineThrough.idx");
-		lightTypeUniform_ = program->uniformLocation("shineThrough.spot");
 		radiusUniform_ = program->uniformLocation("radius");
 	}
 
@@ -283,11 +282,10 @@ public:
 
 	void render(FpvCamera & camera)
 	{
-		if (lightIdxUniform_ >= 0 && lightTypeUniform_ >= 0) {
+		if (lightIdxUniform_ >= 0) {
 			auto program = model_->getShaderProgram();
 			program->bind();
-			program->setUniformValue(lightIdxUniform_, (GLint)idx_);
-			program->setUniformValue(lightTypeUniform_, spot_);
+			program->setUniformValue(lightIdxUniform_, GLint(__DIRECTIONAL_COUNT__ * (spot_? 1 : 0) + idx_));
 
 			if (radiusUniform_ >= 0 && spot_) {
 				float cos = lights_->spot(idx_).outerCutoff_; // outer for now 

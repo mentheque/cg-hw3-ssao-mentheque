@@ -23,6 +23,7 @@
 #include "KeyPressContainer.h"
 #include "Model.h"
 #include "Lights.h"
+#include "ScreenspacePipeline.h"
 
 #include "ColorButton.h"
 
@@ -143,4 +144,8 @@ private:
 	GLint blowOutPointUniform_ = -1;
 	GLint transitionUniform_ = -1;
 	GLint radiusUniform_ = -1;
+
+private:
+
+	ScreenspacePipeline sspipeline_;
 };

@@ -7,6 +7,10 @@
 #include <QString>
 #include <QColor>
 
+#include <QImage>
+#include <QOpenGLFramebufferObject>
+#include <QOpenGLTexture>
+
 #include "ColorButton.h"
 
 QLayout * addAll(QLayout * addTo);
@@ -54,4 +58,7 @@ QString v3ToS(QString prefix, QVector3D vec);
 
 QVector3D colorToV3(QColor color);
 
+float radFromDeg(float deg);
 float cosFromDeg(float deg);
+
+void saveTextureToFile(QOpenGLTexture* texture, const QString & filename);

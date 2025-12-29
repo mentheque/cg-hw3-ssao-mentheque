@@ -10,11 +10,11 @@ set(SRCS
     Shaders/shineThrough.frag
     resources.qrc
  "FpvCamera.h" "FpvCamera.cpp" "KeyPressContainer.h" "KeyPressContainer.cpp" "Model.h" "Model.cpp" "Lights.h" "Lights.cpp" "projectionPointSearch.h" "projectionPointSearch.cpp"
-"ColorButton.h" "ColorButton.cpp" "utils.h" "utils.cpp" "Values.h")
+"ColorButton.h" "ColorButton.cpp" "utils.h" "utils.cpp" "Values.h" "ScreenspacePipeline.cpp" "ScreenspacePipeline.h")
 
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
-add_executable(morph ${SRCS} "FpvCamera.h" "FpvCamera.cpp" "Model.h" "Model.cpp" "Lights.h" "Lights.cpp" "projectionPointSearch.h" "projectionPointSearch.cpp"  "Values.h")
+add_executable(morph ${SRCS} "FpvCamera.h" "FpvCamera.cpp" "Model.h" "Model.cpp" "Lights.h" "Lights.cpp" "projectionPointSearch.h" "projectionPointSearch.cpp"  "Values.h" "ScreenspacePipeline.cpp")
 
 target_link_libraries(morph
     PRIVATE

@@ -273,7 +273,7 @@ void Window::onInit()
 	chessProgram_ = std::make_shared<QOpenGLShaderProgram>();
 	chessProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/model.vert");
 	chessProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment,
-											":/Shaders/model.frag");
+											":/Shaders/gbuffModel.frag");
 
 	chessInstance_.transform_.setToIdentity();
 	chessInstance_.transform_.scale(6.0);
@@ -283,7 +283,7 @@ void Window::onInit()
 	morphProgram_ = std::make_shared<QOpenGLShaderProgram>();
 	morphProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/pointBlowout.vert");
 	morphProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment,
-										   ":/Shaders/model.frag");
+										   ":/Shaders/gbuffModel.frag");
 	morphInstance_.transform_.setToIdentity();
 	morphInstance_.transform_.translate(0, 5, 0);
 	morphModel_.setShaderProgram(morphProgram_);
@@ -305,7 +305,6 @@ void Window::onInit()
 	lightUBO_.initialise();
 	lightUBO_.bindToShader(chessProgram_, "LightSources");
 	lightUBO_.bindToShader(morphProgram_, "LightSources");
-
 	// ---------------------
 
 
@@ -314,12 +313,12 @@ void Window::onInit()
 	directionalProgram_ = std::make_shared<QOpenGLShaderProgram>();
 	directionalProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/model.vert");
 	directionalProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment,
-										   ":/Shaders/shineThrough.frag");
+										   ":/Shaders/gbuffShineThrough.frag");
 
 	spotProgram_ = std::make_shared<QOpenGLShaderProgram>();
 	spotProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/coneScaling.vert");
 	spotProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment,
-												 ":/Shaders/shineThrough.frag");
+												 ":/Shaders/gbuffShineThrough.frag");
 
 	directionalModel_.setShaderProgram(directionalProgram_);
 	spotModel_.setShaderProgram(spotProgram_);
@@ -365,6 +364,87 @@ void Window::onInit()
 
 	camera_.setTransforms({3.80794859, 4.15898752, 5.50759220},
 		-0.330000490, 4.08237696);
+
+	//ScreenspacePipeline::Texture
+
+	auto ssSimpleProgram = std::make_shared<QOpenGLShaderProgram>();
+	ssSimpleProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssSimple.vert");
+	ssSimpleProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
+												 ":/Shaders/ssSimple.frag");
+
+	ssSimpleProgram->bind();
+	auto simpleColorUniform = ssSimpleProgram->uniformLocation("colorTex");
+	ssSimpleProgram->release();
+
+	auto ssDepthProgram = std::make_shared<QOpenGLShaderProgram>();
+	ssDepthProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssSimple.vert");
+	ssDepthProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
+											 ":/Shaders/ssDepthReading.frag");
+
+	auto ssNormalProgram = std::make_shared<QOpenGLShaderProgram>();
+	ssNormalProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssSimple.vert");
+	ssNormalProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
+											":/Shaders/ssNormal.frag");
+
+	auto ssLightingProgram = std::make_shared<QOpenGLShaderProgram>();
+	ssLightingProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssLighting.vert");
+	ssLightingProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
+											 ":/Shaders/ssLighting.frag");
+	lightUBO_.bindToShader(ssLightingProgram, "LightSources");
+
+	ssLightingProgram->bind();
+	auto ssl_gAspectRatioUniform = ssLightingProgram->uniformLocation("gAspectRatio");
+	auto ssl_gTanHalfFOVUniform = ssLightingProgram->uniformLocation("gTanHalfFOV");
+
+	auto ssl_projectionUniform = ssLightingProgram->uniformLocation("projection");
+	auto ssl_sampleKernelUniform = ssLightingProgram->uniformLocation("sampleKernel");
+	auto ssl_invViewUniform = ssLightingProgram->uniformLocation("invView");
+	auto ssl_cameraPosWorldUniform = ssLightingProgram->uniformLocation("cameraPosWorld");
+
+	auto ssl_invProjUniform = ssLightingProgram->uniformLocation("invProj");
+	auto ssl_nearPlaneUniform = ssLightingProgram->uniformLocation("nearPlane");
+	auto ssl_farPlaneUniform = ssLightingProgram->uniformLocation("farPlane");
+	ssLightingProgram->release();
+
+
+	sspipeline_.initBuffers();
+	sspipeline_.initPipeline(
+		{
+			{"depthTex", {QOpenGLTexture::DepthFormat, QOpenGLTexture::Depth, QOpenGLTexture::Float32}},
+			{"diffuseTex", {QOpenGLTexture::RGBA8_UNorm, QOpenGLTexture::RGBA, QOpenGLTexture::UInt8}},
+			{"normalTex", {QOpenGLTexture::RGB16F, QOpenGLTexture::RGB, QOpenGLTexture::Float16}},
+			{"positionTex", {QOpenGLTexture::RGB16F, QOpenGLTexture::RGB, QOpenGLTexture::Float16}},
+			{"colorTex", {QOpenGLTexture::RGBA8_UNorm, QOpenGLTexture::RGBA, QOpenGLTexture::UInt8}},
+		},
+		{{"depthTex", GL_DEPTH_ATTACHMENT}, {"diffuseTex", GL_COLOR_ATTACHMENT0},
+		{"normalTex", GL_COLOR_ATTACHMENT1}, {"positionTex", GL_COLOR_ATTACHMENT2}},
+		{
+			{
+				ssLightingProgram,
+				{{"depthTex"}, {"diffuseTex"}, {"normalTex"}, {"positionTex"}},
+				{{"colorTex", GL_COLOR_ATTACHMENT0}},
+				[=, this]() {
+				ssLightingProgram->setUniformValue(ssl_gAspectRatioUniform, this->camera_.getAspect());
+				ssLightingProgram->setUniformValue(ssl_gTanHalfFOVUniform, this->camera_.getTanHalfFov());
+
+				ssLightingProgram->setUniformValue(ssl_projectionUniform, this->camera_.getProjection());
+				//ssLightingProgram->setUniformValue(ssl_sampleKernelUniform, this->camera_.getProjection());
+				ssLightingProgram->setUniformValue(ssl_invViewUniform, this->camera_.getView().inverted());
+				ssLightingProgram->setUniformValue(ssl_cameraPosWorldUniform,
+					this->camera_.getView().inverted().column(3).toVector3D());
+				  ssLightingProgram->setUniformValue(ssl_invProjUniform, this->camera_.getProjection().inverted());
+				  ssLightingProgram->setUniformValue(ssl_nearPlaneUniform, this->camera_.getNear());
+				  ssLightingProgram->setUniformValue(ssl_farPlaneUniform, this->camera_.getFar());
+				}
+			},
+			{
+				ssSimpleProgram,
+				{{"colorTex", simpleColorUniform}},
+				{},
+				[=]() { return; } // do nothing
+			}
+		}
+	);
 }
 
 void Window::onRender()
@@ -372,6 +452,8 @@ void Window::onRender()
 	const auto guard = captureMetrics();
 	qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 
+	sspipeline_.bindFbo();
+	//glClearColor(1.0f, 0.0f, 0.0f, 1.0f);// Bright red
 	// Clear buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -479,6 +561,9 @@ void Window::onRender()
 
 	morphModel_.render(camera_, {&scaledMorph});
 
+	sspipeline_.releaseFbo();
+	sspipeline_.execute();
+
 	++frameCount_;
 
 	// Request redraw if animated
@@ -500,6 +585,7 @@ void Window::onResize(const size_t width, const size_t height)
 	const auto fov = 60.0f;
 
 	camera_.setPerspective(fov, aspect, zNear, zFar);
+	sspipeline_.resize(width, height);
 }
 
 Window::PerfomanceMetricsGuard::PerfomanceMetricsGuard(std::function<void()> callback)
