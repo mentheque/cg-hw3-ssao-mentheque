@@ -7,6 +7,7 @@
 #include <QVBoxLayout>
 #include <QScreen>
 #include <QPushButton>
+#include <QCheckBox>
 
 #include <array>
 #include <algorithm>
@@ -133,6 +134,17 @@ Window::Window() noexcept
 										   1000, 0, 1.0, &this->morphTransition_, 0);
 	morphProgress->setTickInterval(1000);
 
+	auto supersampCheck = new QCheckBox("Sumpersampling x4", this);
+	connect(supersampCheck, &QCheckBox::toggled, [this](bool checked) {
+		if (checked)
+		{
+			this->sspipeline_.supersample(2);
+		}
+		else
+		{
+			this->sspipeline_.supersample(1);
+		}
+	});
 
 	QFrame * hLine0 = new QFrame();
 	hLine0->setFrameShape(QFrame::HLine);
@@ -141,7 +153,9 @@ Window::Window() noexcept
 	QFrame * hLine2 = new QFrame();
 	hLine2->setFrameShape(QFrame::HLine);
 	QFrame * hLine3 = new QFrame();
-	hLine2->setFrameShape(QFrame::HLine);
+	hLine3->setFrameShape(QFrame::HLine);
+	QFrame * hLine4 = new QFrame();
+	hLine4->setFrameShape(QFrame::HLine);
 
 	auto settingLayout = new QVBoxLayout();
 	settingLayout->addLayout(addAllH(posLabel));
@@ -172,6 +186,9 @@ Window::Window() noexcept
 	settingLayout->addLayout(addAllH(mscaleLabel, morphScale));
 	settingLayout->addLayout(addAllH(morphModelButton, morphPointButton));
 	settingLayout->addWidget(morphProgress);
+
+	settingLayout->addWidget(hLine3);
+	settingLayout->addWidget(supersampCheck);
 
 	settingsWidget->setLayout(settingLayout);
 
@@ -396,16 +413,27 @@ void Window::onInit()
 	auto ssl_gAspectRatioUniform = ssLightingProgram->uniformLocation("gAspectRatio");
 	auto ssl_gTanHalfFOVUniform = ssLightingProgram->uniformLocation("gTanHalfFOV");
 
-	auto ssl_projectionUniform = ssLightingProgram->uniformLocation("projection");
 	auto ssl_sampleKernelUniform = ssLightingProgram->uniformLocation("sampleKernel");
 	auto ssl_invViewUniform = ssLightingProgram->uniformLocation("invView");
 	auto ssl_cameraPosWorldUniform = ssLightingProgram->uniformLocation("cameraPosWorld");
 
-	auto ssl_invProjUniform = ssLightingProgram->uniformLocation("invProj");
-	auto ssl_nearPlaneUniform = ssLightingProgram->uniformLocation("nearPlane");
-	auto ssl_farPlaneUniform = ssLightingProgram->uniformLocation("farPlane");
+	auto ssl_viewZConstantsUniform = ssLightingProgram->uniformLocation("viewZConstants");
 	ssLightingProgram->release();
 
+	auto ssaoProgram = std::make_shared<QOpenGLShaderProgram>();
+	ssaoProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssLighting.vert");
+	ssaoProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
+											   ":/Shaders/ssLighting.frag");
+
+	ssaoProgram->bind();
+	auto ssao_gAspectRatioUniform = ssaoProgram->uniformLocation("gAspectRatio");
+	auto ssao_gTanHalfFOVUniform = ssaoProgram->uniformLocation("gTanHalfFOV");
+
+	auto ssao_sampleKernelUniform = ssaoProgram->uniformLocation("sampleKernel");
+	auto ssao_invViewUniform = ssaoProgram->uniformLocation("invView");
+
+	auto ssao_viewZConstantsUniform = ssaoProgram->uniformLocation("viewZConstants");
+	ssaoProgram->release();
 
 	sspipeline_.initBuffers();
 	sspipeline_.initPipeline(
@@ -417,24 +445,28 @@ void Window::onInit()
 			{"colorTex", {QOpenGLTexture::RGBA8_UNorm, QOpenGLTexture::RGBA, QOpenGLTexture::UInt8}},
 		},
 		{{"depthTex", GL_DEPTH_ATTACHMENT}, {"diffuseTex", GL_COLOR_ATTACHMENT0},
-		{"normalTex", GL_COLOR_ATTACHMENT1}, {"positionTex", GL_COLOR_ATTACHMENT2}},
+		{"normalTex", GL_COLOR_ATTACHMENT1}},
 		{
 			{
-				ssLightingProgram,
-				{{"depthTex"}, {"diffuseTex"}, {"normalTex"}, {"positionTex"}},
+				ssaoProgram,
+				{{"depthTex"}, {"normalTex"}},
 				{{"colorTex", GL_COLOR_ATTACHMENT0}},
+				[=]() { return; }// do nothing
+			},
+			{
+				ssLightingProgram,
+				{{"depthTex"}, {"diffuseTex"}, {"normalTex"}},
+				{{"diffuseTex", GL_COLOR_ATTACHMENT0}}, // writing to diffuse, fix? 
 				[=, this]() {
 				ssLightingProgram->setUniformValue(ssl_gAspectRatioUniform, this->camera_.getAspect());
 				ssLightingProgram->setUniformValue(ssl_gTanHalfFOVUniform, this->camera_.getTanHalfFov());
 
-				ssLightingProgram->setUniformValue(ssl_projectionUniform, this->camera_.getProjection());
-				//ssLightingProgram->setUniformValue(ssl_sampleKernelUniform, this->camera_.getProjection());
 				ssLightingProgram->setUniformValue(ssl_invViewUniform, this->camera_.getView().inverted());
 				ssLightingProgram->setUniformValue(ssl_cameraPosWorldUniform,
 					this->camera_.getView().inverted().column(3).toVector3D());
-				  ssLightingProgram->setUniformValue(ssl_invProjUniform, this->camera_.getProjection().inverted());
-				  ssLightingProgram->setUniformValue(ssl_nearPlaneUniform, this->camera_.getNear());
-				  ssLightingProgram->setUniformValue(ssl_farPlaneUniform, this->camera_.getFar());
+				auto proj = camera_.getProjection();
+				float viewZConstants[2] = {proj(2, 3), proj(2, 2)};
+				ssLightingProgram->setUniformValueArray(ssl_viewZConstantsUniform, viewZConstants, 2, 1);
 				}
 			},
 			{
@@ -445,6 +477,7 @@ void Window::onInit()
 			}
 		}
 	);
+	sspipeline_.supersample(2);
 }
 
 void Window::onRender()

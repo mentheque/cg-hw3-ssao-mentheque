@@ -62,3 +62,5 @@ float radFromDeg(float deg);
 float cosFromDeg(float deg);
 
 void saveTextureToFile(QOpenGLTexture* texture, const QString & filename);
+
+bool isColorAttachment(GLint att);

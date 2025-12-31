@@ -7,7 +7,7 @@ uniform float gAspectRatio;
 uniform float gTanHalfFOV;
 
 out vec2 tex_coord;
-out vec2 view_ray;
+out vec3 view_ray;
 
 void main()
 {
@@ -15,4 +15,5 @@ void main()
     tex_coord = texCoord;
     view_ray.x = pos.x * gAspectRatio * gTanHalfFOV;
     view_ray.y = pos.y * gTanHalfFOV;
+    view_ray.z = -1;
 }

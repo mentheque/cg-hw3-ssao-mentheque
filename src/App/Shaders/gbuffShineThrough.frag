@@ -6,14 +6,6 @@ struct ShineThrough{
 
 uniform ShineThrough shineThrough;
 
-/*
-    So this is just model.frag copied out here
-    with some minor changes to uniforms and handling
-    of pitch black fragments. Could this code have been 
-    written to the main lighting shader? Perhaps. 
-    Maybe it actually should have, but this for now.
-*/
-
 in vec3 frag_normal;
 in vec2 tex_coord;
 
@@ -35,7 +27,6 @@ uniform Material material;
 
 layout (location = 0) out vec4 out_diffuse;
 layout (location = 1) out vec3 out_normal;
-layout (location = 2) out vec3 out_position;
 
 
 vec4 sample_frag_color(){
@@ -68,6 +59,5 @@ void main() {
 
     out_diffuse = sample_frag_color();
     out_normal = norm;
-    out_diffuse.a = (float(shineThrough.idx)) / 255.0;
-    out_position = frag_pos_world;
+    out_diffuse.a = float(shineThrough.idx + 1) / 255.0;
 }

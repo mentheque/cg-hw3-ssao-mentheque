@@ -10,7 +10,7 @@ set(SRCS
     Shaders/shineThrough.frag
     resources.qrc
  "FpvCamera.h" "FpvCamera.cpp" "KeyPressContainer.h" "KeyPressContainer.cpp" "Model.h" "Model.cpp" "Lights.h" "Lights.cpp" "projectionPointSearch.h" "projectionPointSearch.cpp"
-"ColorButton.h" "ColorButton.cpp" "utils.h" "utils.cpp" "Values.h" "ScreenspacePipeline.cpp" "ScreenspacePipeline.h")
+"ColorButton.h" "ColorButton.cpp" "utils.h" "utils.cpp" "Values.h" "ScreenspacePipeline.cpp" "ScreenspacePipeline.h" "ssaoUniforms.h" "ssaoUniforms.cpp")
 
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 

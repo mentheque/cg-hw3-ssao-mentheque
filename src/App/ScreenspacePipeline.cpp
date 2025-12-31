@@ -151,10 +151,14 @@ bool ScreenspacePipeline::initPipeline(
 
 	// Framebuffer setup for first outside fill
 	initialOuts_.resize(texSize, -1);
+	drawBuffers_.resize(effects.size());
 	for (auto & texturePair: initialOuts)
 	{
 		initialOuts_[textureIdxs.at(texturePair.textureName_)] =
 			texturePair.textureUniform_;
+		if (isColorAttachment(texturePair.textureUniform_)) {
+			drawBuffers_[0].push_back(texturePair.textureUniform_);
+		}
 	}
 
 	pipelineInOuts_.resize(2 * texSize * effects.size(), -1); // last doesn't need outs, but keeping for now
@@ -173,6 +177,11 @@ bool ScreenspacePipeline::initPipeline(
 		{
 			pipelineInOuts_[inoutsPrefix + texSize + textureIdxs.at(texturePair.textureName_)] =
 				texturePair.textureUniform_;
+			if (isColorAttachment(texturePair.textureUniform_))
+			{
+				// should work fine as last shouldn't have attachemnts
+				drawBuffers_[i + 1].push_back(texturePair.textureUniform_);
+			}
 		}
 
 		for (size_t t = 0; t < texSize; t++) {
@@ -209,8 +218,8 @@ std::unique_ptr<QOpenGLTexture> ScreenspacePipeline::genTexture(TextureParams& p
 }
 
 void ScreenspacePipeline::resize(size_t width, size_t height) {
-	//width *= 4;
-	//height *= 4;
+	width *= sizeMultiplier_;
+	height *= sizeMultiplier_;
 	screenQuad_.resize(width, height);
 	for (size_t i = 0; i < textures_.size(); i++) {
 		textures_[i] = genTexture(textureDefs_[i], width, height);
@@ -222,21 +231,23 @@ void ScreenspacePipeline::resize(size_t width, size_t height) {
 
 void ScreenspacePipeline::execute()
 {
-	//saveTextureToFile(textures_[0].get(), "ass0.png");
-	//saveTextureToFile(textures_[1].get(), "ass1.png");
-	//saveTextureToFile(textures_[2].get(), "ass2.png");
-	//saveTextureToFile(textures_[3].get(), "ass3.png");
-
-
 	auto glExtra = QOpenGLContext::currentContext()->extraFunctions();
 	auto glFunc = QOpenGLContext::currentContext()->functions();
 	fbo_.bind();
+
+	superViewport(glFunc);
 	glFunc->glDisable(GL_DEPTH_TEST);
 
 	for (size_t e = 0; e < shaderPrograms_.size(); e++) {
 		if (e == shaderPrograms_.size() - 1)
 		{
 			fbo_.release();
+			unsuperViewport(glFunc);
+		}
+		else {
+			// TODO: write initial outs to the place of the last's outAttachments, and 
+			// bind them here with bindFbo_(e + 1) or something.
+			glExtra->glDrawBuffers(drawBuffers_[e + 1].size(), drawBuffers_[e + 1].data());
 		}
 
 		auto & shaderProgram = shaderPrograms_[e];
@@ -295,9 +306,7 @@ void ScreenspacePipeline::execute()
 	glFunc->glEnable(GL_DEPTH_TEST);
 }
 
-void ScreenspacePipeline::bindFbo() {
-	std::vector<GLenum> drawBuffers;
-	
+void ScreenspacePipeline::bindFbo() {	
 	auto glExtra = QOpenGLContext::currentContext()->extraFunctions();
 	auto glFunc = QOpenGLContext::currentContext()->functions();
 
@@ -314,19 +323,9 @@ void ScreenspacePipeline::bindFbo() {
 			// Just keep last attachemnt for every exture, even -1
 			glExtra->glFramebufferTexture2D(GL_FRAMEBUFFER,
 											initialOuts_[t], GL_TEXTURE_2D, texture, 0);
-
-			if (initialOuts_[t] != GL_DEPTH_ATTACHMENT
-				&& initialOuts_[t] != GL_STENCIL_ATTACHMENT
-				&& initialOuts_[t] != GL_DEPTH_STENCIL_ATTACHMENT)
-			{
-				drawBuffers.push_back(initialOuts_[t]);
-			}
 		}
 	}
-	if (!drawBuffers.empty())
-	{
-		glExtra->glDrawBuffers(drawBuffers.size(), drawBuffers.data());
-	}
+	glExtra->glDrawBuffers(drawBuffers_[0].size(), drawBuffers_[0].data());
 
 	GLenum status = glExtra->glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (status != GL_FRAMEBUFFER_COMPLETE)
@@ -334,17 +333,41 @@ void ScreenspacePipeline::bindFbo() {
 		qDebug() << "FBO not complete in bindFbo()! Status:" << status;
 	}
 
-	//glFunc->glViewport(0, 0, screenQuad_.width(), screenQuad_.height());
+	superViewport(glFunc);
 }
 void ScreenspacePipeline::releaseFbo()
 {
 	auto glFunc = QOpenGLContext::currentContext()->functions();
 	fbo_.release();
-	//glFunc->glViewport(0, 0, screenQuad_.width() / 4, screenQuad_.height() / 4);
+
+	unsuperViewport(glFunc);
 }
 
 void ScreenspacePipeline::initBuffers()
 {
 	screenQuad_.init();
 	fbo_.init();
+}
+
+void ScreenspacePipeline::supersample(size_t mult) {
+	if (sizeMultiplier_ != mult) {
+		size_t oldMult = sizeMultiplier_;
+		sizeMultiplier_ = mult;
+		resize(screenQuad_.width() / oldMult, screenQuad_.height() / oldMult);
+	}
+}
+
+void ScreenspacePipeline::superViewport(QOpenGLFunctions * glFunc)
+{
+	if (sizeMultiplier_ != 1)
+	{
+		glFunc->glViewport(0, 0, screenQuad_.width(), screenQuad_.height());
+	}
+}
+void ScreenspacePipeline::unsuperViewport(QOpenGLFunctions * glFunc)
+{
+	if (sizeMultiplier_ != 1)
+	{
+		glFunc->glViewport(0, 0, screenQuad_.width() / sizeMultiplier_, screenQuad_.height() / sizeMultiplier_);
+	}
 }

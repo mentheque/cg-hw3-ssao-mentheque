@@ -161,6 +161,8 @@ class ScreenspacePipeline
 	std::vector<std::function<void()>> preparations_;
 	std::vector<bool> needSwap_;
 	std::vector<GLint> initialOuts_;
+
+	std::vector<std::vector<GLenum>> drawBuffers_;
 public:
 	bool initPipeline(
 		std::map<std::string, TextureParams> textureDefsMap,
@@ -178,4 +180,13 @@ public:
 	void initBuffers();
 	void bindFbo();
 	void releaseFbo();
+
+private:
+	size_t sizeMultiplier_ = 1;
+
+	void superViewport(QOpenGLFunctions * glFunc);
+	void unsuperViewport(QOpenGLFunctions * glFunc);
+
+public:
+	void supersample(size_t mult);
 };

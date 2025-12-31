@@ -5,7 +5,6 @@ in vec2 tex_coord;
 
 layout (location = 0) out vec4 out_diffuse;
 layout (location = 1) out vec3 out_normal;
-layout (location = 2) out vec3 out_position;
 
 in vec3 frag_pos_world;
 
@@ -53,5 +52,4 @@ void main() {
 
     out_diffuse = sample_frag_color();
     out_normal = norm;
-    out_position = frag_pos_world;
 }

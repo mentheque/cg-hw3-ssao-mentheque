@@ -7,24 +7,19 @@
 // -----------------
 
 in vec2 tex_coord;
-in vec2 view_ray;
+in vec3 view_ray;
 
 out vec4 out_col;
 
 uniform sampler2D diffuseTex;
 uniform sampler2D depthTex;
 uniform sampler2D normalTex;
-uniform sampler2D positionTex;
-
-uniform mat4 projection;
 
 const int MAX_KERNEL_SIZE = 64;
 uniform vec3 sampleKernel[MAX_KERNEL_SIZE];
 
 uniform mat4 invView;
-uniform mat4 invProj;
-uniform float nearPlane;
-uniform float farPlane;
+uniform float viewZConstants[2];
 
 uniform vec3 cameraPosWorld;
 
@@ -47,8 +42,8 @@ layout (std140) uniform LightSources {
 
 float calc_viewZ(vec2 coords)
 {
-    float depth = texture(depthTex, coords).r;
-    return projection[3][2] / (2 * depth -1 - projection[2][2]);
+    float z_ndc = 2 * texture(depthTex, coords).r - 1;
+    return viewZConstants[0] / (z_ndc + viewZConstants[1]);
 }
 
 vec3 get_world_pos(vec3 view_pos){
@@ -56,32 +51,34 @@ vec3 get_world_pos(vec3 view_pos){
     return world_pos.xyz / world_pos.w;
 }
 
-float linearize_depth(float depth)
-{
-    float z_n = 2.0 * depth - 1.0;
-    return (2.0 * nearPlane * farPlane) / (farPlane + nearPlane - z_n * (farPlane - nearPlane));
-}
-
-vec3 reconstruct_world_position(vec2 texCoord, float depth, vec2 ray)
-{
-    float linearDepth = linearize_depth(depth);
-    vec3 viewPos = vec3(ray * linearDepth, linearDepth);
-    vec4 worldPos = invView * vec4(viewPos, 1.0);
-    return worldPos.xyz;
-}
-
 
 void main()
 {
-    float viewZ = calc_viewZ(tex_coord);
 
-    float viewX = view_ray.x * viewZ;
-    float viewY = view_ray.y * viewZ;
-
-    vec3 view_pos = vec3(viewX, viewY, viewZ);
-    vec3 frag_pos_world = texture(positionTex, tex_coord).xyz;
+    vec3 view_pos = view_ray * calc_viewZ(tex_coord);
+    vec3 frag_pos_world = (invView * vec4(view_pos, 1.0)).xyz;
     vec3 norm = texture(normalTex, tex_coord).xyz;
     vec4 base_color = texture(diffuseTex, tex_coord).rgba;
+
+    // geting information on light models
+    bool spot = false;
+    int skip_idx = -1;
+    if(base_color.a != 1.0){
+        skip_idx = int(base_color.a * 255.0) - 1;
+        if(skip_idx >= _directionalSize){
+            spot = true;
+            skip_idx -= _directionalSize;
+        }
+
+        if(base_color.rgb == vec3(0.0)){
+            if(spot){
+                out_col = vec4(spotlights[skip_idx].directional.color.rgb, 1.0);
+            }else{
+                out_col = vec4(directionals[skip_idx].color.rgb, 1.0);
+            }
+            return;
+        }
+    }
 
     
     float ambient;
@@ -93,6 +90,10 @@ void main()
     vec3 viewDir = normalize(cameraPosWorld - frag_pos_world);
 
     for(int i = 0;i < _directionalSize;i++){
+        if(!spot && i == skip_idx){
+            continue;
+        }
+
         ambient = directionals[i].ambientStrength;
         diffuse = directionals[i].diffuseStrength * max(dot(norm, -directionals[i].direction), 0.0);
         // 32 should be from material
@@ -105,6 +106,10 @@ void main()
     float edgeFadeoutAdjust = 1.0;
 
     for(int i = 0;i < _spotSize;i++){
+        if(spot && i == skip_idx){
+            continue;
+        }
+
         vec3 fromLightDir = normalize(frag_pos_world - spotlights[i].position);
         
         float cosine = dot(fromLightDir, spotlights[i].directional.direction);
@@ -133,5 +138,7 @@ void main()
     
     vec3 linear_out = clamp(lightAccumulare * vec3(base_color), 0.0, 1.0);
     out_col = vec4(pow(linear_out.rgb, vec3(1.0/2.2)), 1.0); // deal with alpha later
+
+    //out_col = vec4(-viewZ, 0.0, 0.0, 1.0);
     //out_col = base_color;
 }

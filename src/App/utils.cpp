@@ -120,3 +120,10 @@ float radFromDeg(float deg) {
 float cosFromDeg(float deg) {
 	return std::cos(radFromDeg(deg));
 }
+
+bool isColorAttachment(GLint att)
+{
+	return (att != GL_DEPTH_ATTACHMENT) && (att != GL_STENCIL_ATTACHMENT)
+		&& (att != GL_DEPTH_STENCIL_ATTACHMENT) && (att != GL_STENCIL_ATTACHMENT_EXT)
+		&& (att != GL_DEPTH_ATTACHMENT_EXT);
+}
