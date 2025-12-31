@@ -15,9 +15,6 @@ uniform sampler2D diffuseTex;
 uniform sampler2D depthTex;
 uniform sampler2D normalTex;
 
-const int MAX_KERNEL_SIZE = 64;
-uniform vec3 sampleKernel[MAX_KERNEL_SIZE];
-
 uniform mat4 invView;
 uniform float viewZConstants[2];
 

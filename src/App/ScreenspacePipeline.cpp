@@ -371,3 +371,7 @@ void ScreenspacePipeline::unsuperViewport(QOpenGLFunctions * glFunc)
 		glFunc->glViewport(0, 0, screenQuad_.width() / sizeMultiplier_, screenQuad_.height() / sizeMultiplier_);
 	}
 }
+
+QVector2D ScreenspacePipeline::textureSize() {
+	return {(float)screenQuad_.width(), (float)screenQuad_.height()};
+}

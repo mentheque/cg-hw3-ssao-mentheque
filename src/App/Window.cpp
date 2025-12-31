@@ -15,6 +15,7 @@
 #include <numbers>
 #include <vector>
 #include <numbers>
+#include <string>
 
 #include "projectionPointSearch.h"
 #include "utils.h"
@@ -134,7 +135,7 @@ Window::Window() noexcept
 										   1000, 0, 1.0, &this->morphTransition_, 0);
 	morphProgress->setTickInterval(1000);
 
-	auto supersampCheck = new QCheckBox("Sumpersampling x4", this);
+	auto supersampCheck = new QCheckBox("Sumpersampling x4", settingsWidget);
 	connect(supersampCheck, &QCheckBox::toggled, [this](bool checked) {
 		if (checked)
 		{
@@ -145,6 +146,34 @@ Window::Window() noexcept
 			this->sspipeline_.supersample(1);
 		}
 	});
+
+
+	QSlider * sampleSizeSlider = new QSlider(Qt::Horizontal, settingsWidget);
+	sampleSizeSlider->setRange(1, 64);
+	sampleSizeSlider->setTickPosition(QSlider::TicksBelow);
+
+	QLabel * sampleSizeLabel = new QLabel(settingsWidget);
+	sampleSizeLabel->setText("Sample size [1: 64]");
+
+	QObject::connect(sampleSizeSlider, &QSlider::valueChanged, [this](int value) {
+		this->sampleSize_ = value;
+		this->sampleKernel_ = genKernel(value);
+		this->sampleSizeChanged_ = true;
+	});
+	sampleSizeSlider->setValue(8);
+
+	QLabel * radiusLabel = new QLabel(settingsWidget);
+	radiusLabel->setText("Kernel radius [0.0, 2.0]");
+	QSlider * radiusSlider = createSlider(settingsWidget,
+									   1000, 0, 2.0, &this->kernelRadius_, 250);
+	radiusSlider->setTickInterval(250);
+
+	QLabel * biasLabel = new QLabel(settingsWidget);
+	biasLabel->setText("Depth check bias [0.0, 0.2]");
+	QSlider * biasSlider = createSlider(settingsWidget,
+										  1000, 0, 0.2, &this->bias_, 125);
+	biasSlider->setTickInterval(250);
+
 
 	QFrame * hLine0 = new QFrame();
 	hLine0->setFrameShape(QFrame::HLine);
@@ -189,6 +218,12 @@ Window::Window() noexcept
 
 	settingLayout->addWidget(hLine3);
 	settingLayout->addWidget(supersampCheck);
+	settingLayout->addWidget(sampleSizeLabel);
+	settingLayout->addWidget(sampleSizeSlider);
+	settingLayout->addWidget(radiusLabel);
+	settingLayout->addWidget(radiusSlider);
+	settingLayout->addWidget(biasLabel);
+	settingLayout->addWidget(biasSlider);
 
 	settingsWidget->setLayout(settingLayout);
 
@@ -229,6 +264,8 @@ Window::~Window()
 
 void Window::onInit()
 {
+	noiseTex_ = genNoiseTexture();
+
 	// Light source settings: 
 	// ---------------------
 	lightUBO_.directional(0).color_ = {0, 0, 1};
@@ -409,30 +446,63 @@ void Window::onInit()
 											 ":/Shaders/ssLighting.frag");
 	lightUBO_.bindToShader(ssLightingProgram, "LightSources");
 
+
+	#define UNIFORM_NAME(program, uniform) program##_##uniform##Uniform 
+
+
 	ssLightingProgram->bind();
-	auto ssl_gAspectRatioUniform = ssLightingProgram->uniformLocation("gAspectRatio");
-	auto ssl_gTanHalfFOVUniform = ssLightingProgram->uniformLocation("gTanHalfFOV");
+	auto UNIFORM_NAME(ssl, gAspectRatio) = ssLightingProgram->uniformLocation("gAspectRatio");
+	auto UNIFORM_NAME(ssl, gTanHalfFOV) = ssLightingProgram->uniformLocation("gTanHalfFOV");
 
-	auto ssl_sampleKernelUniform = ssLightingProgram->uniformLocation("sampleKernel");
-	auto ssl_invViewUniform = ssLightingProgram->uniformLocation("invView");
-	auto ssl_cameraPosWorldUniform = ssLightingProgram->uniformLocation("cameraPosWorld");
+	auto UNIFORM_NAME(ssl, invView) = ssLightingProgram->uniformLocation("invView");
+	auto UNIFORM_NAME(ssl, cameraPosWorld) = ssLightingProgram->uniformLocation("cameraPosWorld");
 
-	auto ssl_viewZConstantsUniform = ssLightingProgram->uniformLocation("viewZConstants");
+	auto UNIFORM_NAME(ssl, viewZConstants) = ssLightingProgram->uniformLocation("viewZConstants");
 	ssLightingProgram->release();
+
 
 	auto ssaoProgram = std::make_shared<QOpenGLShaderProgram>();
 	ssaoProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssLighting.vert");
 	ssaoProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
-											   ":/Shaders/ssLighting.frag");
+											   ":/Shaders/ssao.frag");
+
+	/*
+	uniform sampler2D noiseTex;
+
+uniform mat3 normalMatrix;
+uniform mat4 projection;
+
+uniform vec3 sampleKernel[MAX_KERNEL_SIZE];
+uniform int sampleSize;
+uniform float kernelRadius;
+uniform float bias;
+
+uniform vec2 noiseScale;
+uniform float viewZConstants[2];
+	*/
 
 	ssaoProgram->bind();
-	auto ssao_gAspectRatioUniform = ssaoProgram->uniformLocation("gAspectRatio");
-	auto ssao_gTanHalfFOVUniform = ssaoProgram->uniformLocation("gTanHalfFOV");
+	auto UNIFORM_NAME(ssao, gAspectRatio) = ssaoProgram->uniformLocation("gAspectRatio");
+	auto UNIFORM_NAME(ssao, gTanHalfFOV) = ssaoProgram->uniformLocation("gTanHalfFOV");
 
-	auto ssao_sampleKernelUniform = ssaoProgram->uniformLocation("sampleKernel");
-	auto ssao_invViewUniform = ssaoProgram->uniformLocation("invView");
+	auto UNIFORM_NAME(ssao, noiseTex) = ssaoProgram->uniformLocation("noiseTex");
+	auto UNIFORM_NAME(ssao, normalMatrix) = ssaoProgram->uniformLocation("normalMatrix");
+	auto UNIFORM_NAME(ssao, projection) = ssaoProgram->uniformLocation("projection");
 
-	auto ssao_viewZConstantsUniform = ssaoProgram->uniformLocation("viewZConstants");
+	#define KERNEL_UNIFORMS(i) ssao_sampleKernelUniforms[i]
+	#define KERNEL_UNIFORMS_NAME(i) QString::fromStdString("sampleKernel[" + std::to_string(i) + "]")
+
+	GLint ssao_sampleKernelUniforms[64];
+	for (size_t i = 0; i < 64; i++)
+	{
+		KERNEL_UNIFORMS(i) = ssaoProgram->uniformLocation(KERNEL_UNIFORMS_NAME(i));
+	}
+	auto UNIFORM_NAME(ssao, sampleSize) = ssaoProgram->uniformLocation("sampleSize");
+	auto UNIFORM_NAME(ssao, kernelRadius) = ssaoProgram->uniformLocation("kernelRadius");
+	auto UNIFORM_NAME(ssao, bias) = ssaoProgram->uniformLocation("bias");
+
+	auto UNIFORM_NAME(ssao, noiseScale) = ssaoProgram->uniformLocation("noiseScale");
+	auto UNIFORM_NAME(ssao, viewZConstants) = ssaoProgram->uniformLocation("viewZConstants");
 	ssaoProgram->release();
 
 	sspipeline_.initBuffers();
@@ -451,22 +521,48 @@ void Window::onInit()
 				ssaoProgram,
 				{{"depthTex"}, {"normalTex"}},
 				{{"colorTex", GL_COLOR_ATTACHMENT0}},
-				[=]() { return; }// do nothing
+				[=, this]() {
+				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, gAspectRatio), this->camera_.getAspect());
+				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, gTanHalfFOV), this->camera_.getTanHalfFov());
+
+				// NOTE: arbituary hight value, keep notice. 
+				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, noiseTex), 8);
+				this->noiseTex_->bind(8);
+				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, normalMatrix), this->camera_.getView().normalMatrix());
+				auto proj = camera_.getProjection();
+				float viewZConstants_[2] = {proj(2, 3), proj(2, 2)};
+				ssaoProgram->setUniformValueArray(UNIFORM_NAME(ssao, viewZConstants), viewZConstants_, 2, 1);
+				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, projection), proj);
+
+				if (this->sampleSizeChanged_)
+				{
+					this->sampleSizeChanged_ = false;
+					for (size_t s = 0; s < this->sampleSize_; s++)
+					{
+						ssaoProgram->setUniformValue(KERNEL_UNIFORMS(s), this->sampleKernel_[s]);
+					}
+				}
+				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, sampleSize), (GLint)this->sampleSize_);
+				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, kernelRadius), this->kernelRadius_);
+				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, bias), this->bias_);
+
+				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, noiseScale), this->sspipeline_.textureSize() / 4.0);
+				}
 			},
 			{
 				ssLightingProgram,
 				{{"depthTex"}, {"diffuseTex"}, {"normalTex"}},
 				{{"diffuseTex", GL_COLOR_ATTACHMENT0}}, // writing to diffuse, fix? 
 				[=, this]() {
-				ssLightingProgram->setUniformValue(ssl_gAspectRatioUniform, this->camera_.getAspect());
-				ssLightingProgram->setUniformValue(ssl_gTanHalfFOVUniform, this->camera_.getTanHalfFov());
+				ssLightingProgram->setUniformValue(UNIFORM_NAME(ssl, gAspectRatio), this->camera_.getAspect());
+				ssLightingProgram->setUniformValue(UNIFORM_NAME(ssl, gTanHalfFOV), this->camera_.getTanHalfFov());
 
-				ssLightingProgram->setUniformValue(ssl_invViewUniform, this->camera_.getView().inverted());
-				ssLightingProgram->setUniformValue(ssl_cameraPosWorldUniform,
+				ssLightingProgram->setUniformValue(UNIFORM_NAME(ssl, invView), this->camera_.getView().inverted());
+				ssLightingProgram->setUniformValue(UNIFORM_NAME(ssl, cameraPosWorld),
 					this->camera_.getView().inverted().column(3).toVector3D());
 				auto proj = camera_.getProjection();
-				float viewZConstants[2] = {proj(2, 3), proj(2, 2)};
-				ssLightingProgram->setUniformValueArray(ssl_viewZConstantsUniform, viewZConstants, 2, 1);
+				float viewZConstants_[2] = {proj(2, 3), proj(2, 2)};
+				ssLightingProgram->setUniformValueArray(UNIFORM_NAME(ssl, viewZConstants), viewZConstants_, 2, 1);
 				}
 			},
 			{

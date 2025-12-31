@@ -15,6 +15,7 @@ std::vector<QVector3D> genKernel(size_t size)
 		sample *= std::lerp(0.1f, 1.0f, ((float)i * i) / ((float)size * size));
 		out.push_back(sample);
 	}
+	return out;
 }
 
 std::unique_ptr<QOpenGLTexture> genNoiseTexture()

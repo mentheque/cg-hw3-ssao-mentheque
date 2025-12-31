@@ -24,6 +24,7 @@
 #include "Model.h"
 #include "Lights.h"
 #include "ScreenspacePipeline.h"
+#include "ssaoUniforms.h"
 
 #include "ColorButton.h"
 
@@ -148,4 +149,12 @@ private:
 private:
 
 	ScreenspacePipeline sspipeline_;
+
+	std::unique_ptr<QOpenGLTexture> noiseTex_;
+	size_t sampleSize_ = 0;
+	std::vector<QVector3D> sampleKernel_;
+
+	float kernelRadius_;
+	float bias_;
+	bool sampleSizeChanged_ = true;
 };

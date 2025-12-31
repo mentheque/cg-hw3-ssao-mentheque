@@ -3,7 +3,6 @@
 in vec2 tex_coord;
 in vec3 view_ray;
 
-uniform sampler2D diffuseText;
 uniform sampler2D depthTex;
 uniform sampler2D normalTex;
 uniform sampler2D noiseTex;
@@ -29,28 +28,30 @@ float calc_viewZ(vec2 coords)
 }
 
 void main() {
-    vec3 norm = normalMatrix * texture(normalTex, tex_coord).rgb;
+    vec3 norm = normalize(normalMatrix * texture(normalTex, tex_coord).rgb);
     vec3 view_pos = view_ray * calc_viewZ(tex_coord);
-    vec3 random_vec = texture(noiseTex, tex_coord * noiseScale).xyz;
+    vec3 random_vec = normalize(texture(noiseTex, tex_coord * noiseScale).xyz);
     
     vec3 tangent = normalize(random_vec - norm * dot(random_vec, norm));
     vec3 bitangent = cross(norm, tangent);
     mat3 TBN = mat3(tangent, bitangent, norm);
 
-    float sampleZ = -1;
     float occlusion = 0;
     for(int i = 0;i < sampleSize;i++){
-        vec3 sample_pos = view_pos + TBN * sampleKernel[i] * kernelRadius;
+        vec3 sample_pos = view_pos + (TBN * sampleKernel[i]) * kernelRadius;
 
         vec4 offset = vec4(sample_pos, 1.0);
         offset = projection * offset; // from view to clip-space
-        offset.xyz /= offset.w; // perspective divide
-        offset.xyz  = offset.xyz * 0.5 + 0.5;
+        offset.xy /= offset.w; // perspective divide
+        offset.xy  = offset.xy * 0.5 + 0.5;
 
-        float sample_z = calc_viewZ(offset.xy);
+        // I have no clue why flipping the sign here works, but I found it in one of the 
+        // comments in like the most og post, and I'm glad it finally works lol
+        float sample_z = -calc_viewZ(offset.xy);
         float range_check = smoothstep(0.0, 1.0, kernelRadius / abs(view_pos.z - sample_z));
-        occlusion += (sample_z >= view_pos.z + bias ? 1.0 : 0.0) * range_check;         
+        occlusion += (sample_z >= sample_pos.z + bias ? 1.0 : 0.0) * range_check;
     }
     occlusion = 1.0 - (occlusion / sampleSize);
+    //out_col = vec4(-view_pos.z, 0.0, 0.0, 1.0);
     out_col = vec4(occlusion, occlusion, occlusion, 1.0);
 }

@@ -22,5 +22,6 @@
         <file>Shaders/ssNormal.frag</file>
         <file>Shaders/ssLighting.frag</file>
         <file>Shaders/ssLighting.vert</file>
+        <file>Shaders/ssao.frag</file>
     </qresource>
 </RCC>

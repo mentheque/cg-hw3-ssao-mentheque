@@ -189,4 +189,6 @@ private:
 
 public:
 	void supersample(size_t mult);
+
+	QVector2D textureSize();
 };
