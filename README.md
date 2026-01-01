@@ -6,8 +6,7 @@ Some basic gltf model morphing and displaying with phong lighting.
 
 Created from [provided template](https://github.com/sadads1337/mse-gl-hw-template), Build, 3d-party libs and requirements are from there. 
 
-
-<img width="981" height="987" alt="image" src="https://github.com/user-attachments/assets/ba053980-ce5b-401c-b901-c144d3986b1c" />
+<img width="631" height="898" alt="image" src="https://github.com/user-attachments/assets/ad5e7e7c-63f3-4aba-acdd-1b695a5f251e" />
 
 ## Functionality
 
