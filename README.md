@@ -1,8 +1,8 @@
 ![build_cmake_status](https://github.com/sadads1337/mse-gl-hw-template/actions/workflows/build_cmake.yml/badge.svg)
 
-# ITMO HW2 Morph
+# ITMO HW3 SSAO
 
-Some basic gltf model morphing and displaying with phong lighting.
+Deferred shading pipeline and ssao implemented ontop of https://github.com/mentheque/cg-hw2-morph-mentheque. 
 
 Created from [provided template](https://github.com/sadads1337/mse-gl-hw-template), Build, 3d-party libs and requirements are from there. 
 
@@ -10,10 +10,12 @@ Created from [provided template](https://github.com/sadads1337/mse-gl-hw-templat
 
 ## Functionality
 
-- loading models from .glb files. Supported: node structure, diffuse textures + base color, normal maps with tangent attributes included.
-- Phong lighting: Directional lights and spot lights. Some classes to streamline creating fixed set of lights.
-- Morphing: mapping model to a sphere from a point.
-- FPV camera controlled by mouse movement and WASD
+- Screen space effects pipeline for perpetual texture handling, includning supersampling option. Handles ping-ponging when overwriting textures. Usage example:
+ <img width="734" height="620" alt="image" src="https://github.com/user-attachments/assets/b21ea442-856e-4344-88ae-ee71c306f818" />
+(TODO: link to example file)
+
+- SSAO with simple bluring. Blur code from https://learnopengl.com/Advanced-Lighting/SSAO. 
+
 
 ## User guide
 
@@ -24,7 +26,9 @@ Created from [provided template](https://github.com/sadads1337/mse-gl-hw-templat
 
 ## Комментарии
 
-- chess_2 это переупакованная без draco дефолтная моделька.
+- ssao лучше работает с маленькими радиусом и байасом, как по дефолту, но тогда слегка лагает на модельках прожекторов. Вероятно из-за того что при подстраивании их под размер луча не меняю нормали.
+- информация о том чья моделька для моделек источников света передается через альфу в diffuse текстуре, она не используется.
+- требовалось ssao с реконструкцией, так что она делается два раза для ssao и для освещения.
 
 ## Requirements
 
