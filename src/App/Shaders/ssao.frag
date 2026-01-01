@@ -19,7 +19,7 @@ uniform float bias;
 uniform vec2 noiseScale;
 uniform float viewZConstants[2];
 
-layout (location = 0) out vec4 out_col;
+layout (location = 0) out float out_occlusion;
 
 float calc_viewZ(vec2 coords)
 {
@@ -47,11 +47,11 @@ void main() {
 
         // I have no clue why flipping the sign here works, but I found it in one of the 
         // comments in like the most og post, and I'm glad it finally works lol
+        // Ah, it's because view_ray.z == -1
         float sample_z = -calc_viewZ(offset.xy);
         float range_check = smoothstep(0.0, 1.0, kernelRadius / abs(view_pos.z - sample_z));
         occlusion += (sample_z >= sample_pos.z + bias ? 1.0 : 0.0) * range_check;
     }
     occlusion = 1.0 - (occlusion / sampleSize);
-    //out_col = vec4(-view_pos.z, 0.0, 0.0, 1.0);
-    out_col = vec4(occlusion, occlusion, occlusion, 1.0);
+    out_occlusion = occlusion;
 }

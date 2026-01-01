@@ -157,4 +157,9 @@ private:
 	float kernelRadius_;
 	float bias_;
 	bool sampleSizeChanged_ = true;
+
+	bool applyAO_ = true;
+	bool showOcclusion_ = false;
+
+	GLint blurSize_ = 0.0;
 };

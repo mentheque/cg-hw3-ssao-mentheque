@@ -153,7 +153,7 @@ Window::Window() noexcept
 	sampleSizeSlider->setTickPosition(QSlider::TicksBelow);
 
 	QLabel * sampleSizeLabel = new QLabel(settingsWidget);
-	sampleSizeLabel->setText("Sample size [1: 64]");
+	sampleSizeLabel->setText("Sample Kernel size [1: 64]");
 
 	QObject::connect(sampleSizeSlider, &QSlider::valueChanged, [this](int value) {
 		this->sampleSize_ = value;
@@ -173,6 +173,27 @@ Window::Window() noexcept
 	QSlider * biasSlider = createSlider(settingsWidget,
 										  1000, 0, 0.2, &this->bias_, 125);
 	biasSlider->setTickInterval(250);
+
+	auto applyAOCheck = new QCheckBox("Apply AO", settingsWidget);
+	connect(applyAOCheck, &QCheckBox::toggled, [this](bool checked) {
+		this->applyAO_ = checked;
+	});
+	applyAOCheck->toggle();
+
+	auto showAOCheck = new QCheckBox("Show only AO", settingsWidget);
+	connect(showAOCheck, &QCheckBox::toggled, [this](bool checked) {
+		this->showOcclusion_ = checked;
+	});
+
+	QLabel * blurLabel = new QLabel(settingsWidget);
+	blurLabel->setText("Simple blur size [0: 4]");
+	QSlider * blurSlider = new QSlider(Qt::Horizontal, settingsWidget);
+	blurSlider->setRange(0, 4);
+	blurSlider->setTickPosition(QSlider::TicksBelow);
+	QObject::connect(blurSlider, &QSlider::valueChanged, [this](int value) {
+		this->blurSize_ = value;
+	});
+	blurSlider->setValue(2);
 
 
 	QFrame * hLine0 = new QFrame();
@@ -224,6 +245,10 @@ Window::Window() noexcept
 	settingLayout->addWidget(radiusSlider);
 	settingLayout->addWidget(biasLabel);
 	settingLayout->addWidget(biasSlider);
+	settingLayout->addWidget(applyAOCheck);
+	settingLayout->addWidget(showAOCheck);
+	settingLayout->addWidget(blurLabel);
+	settingLayout->addWidget(blurSlider);
 
 	settingsWidget->setLayout(settingLayout);
 
@@ -458,6 +483,7 @@ void Window::onInit()
 	auto UNIFORM_NAME(ssl, cameraPosWorld) = ssLightingProgram->uniformLocation("cameraPosWorld");
 
 	auto UNIFORM_NAME(ssl, viewZConstants) = ssLightingProgram->uniformLocation("viewZConstants");
+	auto UNIFORM_NAME(ssl, applyAO) = ssLightingProgram->uniformLocation("applyAO");
 	ssLightingProgram->release();
 
 
@@ -465,21 +491,6 @@ void Window::onInit()
 	ssaoProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssLighting.vert");
 	ssaoProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
 											   ":/Shaders/ssao.frag");
-
-	/*
-	uniform sampler2D noiseTex;
-
-uniform mat3 normalMatrix;
-uniform mat4 projection;
-
-uniform vec3 sampleKernel[MAX_KERNEL_SIZE];
-uniform int sampleSize;
-uniform float kernelRadius;
-uniform float bias;
-
-uniform vec2 noiseScale;
-uniform float viewZConstants[2];
-	*/
 
 	ssaoProgram->bind();
 	auto UNIFORM_NAME(ssao, gAspectRatio) = ssaoProgram->uniformLocation("gAspectRatio");
@@ -505,22 +516,39 @@ uniform float viewZConstants[2];
 	auto UNIFORM_NAME(ssao, viewZConstants) = ssaoProgram->uniformLocation("viewZConstants");
 	ssaoProgram->release();
 
+	auto ssShowOccOrProgram = std::make_shared<QOpenGLShaderProgram>();
+	ssShowOccOrProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssSimple.vert");
+	ssShowOccOrProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
+											 ":/Shaders/ssOcclusionOrDiffuse.frag");
+
+	ssShowOccOrProgram->bind();
+	auto UNIFORM_NAME(ssso, showOcclusion) = ssShowOccOrProgram->uniformLocation("showOcclusion");
+	ssShowOccOrProgram->release();
+
+	auto ssSimpleBlurProgram = std::make_shared<QOpenGLShaderProgram>();
+	ssSimpleBlurProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssSimple.vert");
+	ssSimpleBlurProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
+												":/Shaders/ssSimpleBlur.frag");
+
+	ssSimpleBlurProgram->bind();
+	auto UNIFORM_NAME(ssb, blurSize) = ssSimpleBlurProgram->uniformLocation("blurSize");
+	ssSimpleBlurProgram->release();
+
 	sspipeline_.initBuffers();
 	sspipeline_.initPipeline(
 		{
 			{"depthTex", {QOpenGLTexture::DepthFormat, QOpenGLTexture::Depth, QOpenGLTexture::Float32}},
 			{"diffuseTex", {QOpenGLTexture::RGBA8_UNorm, QOpenGLTexture::RGBA, QOpenGLTexture::UInt8}},
 			{"normalTex", {QOpenGLTexture::RGB16F, QOpenGLTexture::RGB, QOpenGLTexture::Float16}},
-			{"positionTex", {QOpenGLTexture::RGB16F, QOpenGLTexture::RGB, QOpenGLTexture::Float16}},
-			{"colorTex", {QOpenGLTexture::RGBA8_UNorm, QOpenGLTexture::RGBA, QOpenGLTexture::UInt8}},
+			{"occlusionTex", {QOpenGLTexture::R16F, QOpenGLTexture::Red, QOpenGLTexture::Float16}},
 		},
 		{{"depthTex", GL_DEPTH_ATTACHMENT}, {"diffuseTex", GL_COLOR_ATTACHMENT0},
-		{"normalTex", GL_COLOR_ATTACHMENT1}},
+			{"normalTex", GL_COLOR_ATTACHMENT1}},
 		{
 			{
 				ssaoProgram,
 				{{"depthTex"}, {"normalTex"}},
-				{{"colorTex", GL_COLOR_ATTACHMENT0}},
+				{{"occlusionTex", GL_COLOR_ATTACHMENT0}},
 				[=, this]() {
 				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, gAspectRatio), this->camera_.getAspect());
 				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, gTanHalfFOV), this->camera_.getTanHalfFov());
@@ -529,7 +557,7 @@ uniform float viewZConstants[2];
 				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, noiseTex), 8);
 				this->noiseTex_->bind(8);
 				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, normalMatrix), this->camera_.getView().normalMatrix());
-				auto proj = camera_.getProjection();
+				auto proj = this->camera_.getProjection();
 				float viewZConstants_[2] = {proj(2, 3), proj(2, 2)};
 				ssaoProgram->setUniformValueArray(UNIFORM_NAME(ssao, viewZConstants), viewZConstants_, 2, 1);
 				ssaoProgram->setUniformValue(UNIFORM_NAME(ssao, projection), proj);
@@ -550,9 +578,17 @@ uniform float viewZConstants[2];
 				}
 			},
 			{
+				ssSimpleBlurProgram,
+				{{"occlusionTex"}},
+				{{"occlusionTex", GL_COLOR_ATTACHMENT0}},
+				[=, this]() {
+				ssSimpleBlurProgram->setUniformValue(UNIFORM_NAME(ssb, blurSize), this->blurSize_);
+				}
+			},
+			{
 				ssLightingProgram,
-				{{"depthTex"}, {"diffuseTex"}, {"normalTex"}},
-				{{"diffuseTex", GL_COLOR_ATTACHMENT0}}, // writing to diffuse, fix? 
+				{{"depthTex"}, {"diffuseTex"}, {"normalTex"}, {"occlusionTex"}},
+				{{"diffuseTex", GL_COLOR_ATTACHMENT0}}, // writing to diffuse, because why not I guess
 				[=, this]() {
 				ssLightingProgram->setUniformValue(UNIFORM_NAME(ssl, gAspectRatio), this->camera_.getAspect());
 				ssLightingProgram->setUniformValue(UNIFORM_NAME(ssl, gTanHalfFOV), this->camera_.getTanHalfFov());
@@ -560,20 +596,22 @@ uniform float viewZConstants[2];
 				ssLightingProgram->setUniformValue(UNIFORM_NAME(ssl, invView), this->camera_.getView().inverted());
 				ssLightingProgram->setUniformValue(UNIFORM_NAME(ssl, cameraPosWorld),
 					this->camera_.getView().inverted().column(3).toVector3D());
-				auto proj = camera_.getProjection();
+				auto proj = this->camera_.getProjection();
 				float viewZConstants_[2] = {proj(2, 3), proj(2, 2)};
 				ssLightingProgram->setUniformValueArray(UNIFORM_NAME(ssl, viewZConstants), viewZConstants_, 2, 1);
+				ssLightingProgram->setUniformValue(UNIFORM_NAME(ssl, applyAO), this->applyAO_);
 				}
 			},
 			{
-				ssSimpleProgram,
-				{{"colorTex", simpleColorUniform}},
+				ssShowOccOrProgram,
+				{{"occlusionTex"}, {"diffuseTex"}},
 				{},
-				[=]() { return; } // do nothing
+				[=, this]() {
+				ssShowOccOrProgram->setUniformValue(UNIFORM_NAME(ssso, showOcclusion), this->showOcclusion_);
+				}
 			}
 		}
 	);
-	sspipeline_.supersample(2);
 }
 
 void Window::onRender()

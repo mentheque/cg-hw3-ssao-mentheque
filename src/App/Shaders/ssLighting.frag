@@ -14,6 +14,9 @@ out vec4 out_col;
 uniform sampler2D diffuseTex;
 uniform sampler2D depthTex;
 uniform sampler2D normalTex;
+uniform sampler2D occlusionTex;
+
+uniform bool applyAO;
 
 uniform mat4 invView;
 uniform float viewZConstants[2];
@@ -77,7 +80,7 @@ void main()
         }
     }
 
-    
+    float ambient_occlusion = (applyAO? texture(occlusionTex, tex_coord).r : 1.0);
     float ambient;
     float diffuse;
     float specular;
@@ -97,7 +100,7 @@ void main()
         specular = directionals[i].specularStrength * 
             pow(max(dot(viewDir, reflect(directionals[i].direction, norm)), 0.0), 32);
 
-        lightAccumulare +=  directionals[i].color * (ambient + diffuse + specular);
+        lightAccumulare +=  directionals[i].color * (ambient * ambient_occlusion + diffuse + specular);
     }
 
     float edgeFadeoutAdjust = 1.0;
@@ -130,7 +133,7 @@ void main()
         }
         ambient = spotlights[i].directional.ambientStrength;
 
-        lightAccumulare += spotlights[i].directional.color * (ambient + diffuse + specular);
+        lightAccumulare += spotlights[i].directional.color * (ambient * ambient_occlusion + diffuse + specular);
     }
     
     vec3 linear_out = clamp(lightAccumulare * vec3(base_color), 0.0, 1.0);

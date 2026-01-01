@@ -23,5 +23,7 @@
         <file>Shaders/ssLighting.frag</file>
         <file>Shaders/ssLighting.vert</file>
         <file>Shaders/ssao.frag</file>
+        <file>Shaders/ssOcclusionOrDiffuse.frag</file>
+        <file>Shaders/ssSimpleBlur.frag</file>
     </qresource>
 </RCC>
