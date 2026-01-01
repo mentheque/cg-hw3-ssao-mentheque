@@ -20,5 +20,6 @@
         <file>Shaders/ssao.frag</file>
         <file>Shaders/ssOcclusionOrDiffuse.frag</file>
         <file>Shaders/ssSimpleBlur.frag</file>
+        <file>Models/tumbleweed.glb</file>
     </qresource>
 </RCC>

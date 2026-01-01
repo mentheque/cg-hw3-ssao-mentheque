@@ -80,7 +80,7 @@ Window::Window() noexcept
 	auto dirLightLabel = new QLabel(settingsWidget);
 	dirLightLabel->setText("directional light: ");
 	dirColor_ = new ColorButton(settingsWidget);
-	dirColor_->setColor(Qt::black);
+	dirColor_->setColor(Qt::white);
 	auto setDirButton = new QPushButton(settingsWidget);
 	setDirButton->setText("Set dir from cached");
 	connect(setDirButton, &QPushButton::clicked, this, [=, this](int value) {
@@ -91,15 +91,17 @@ Window::Window() noexcept
 	auto dirCoeffs = new QLabel(settingsWidget);
 	dirCoeffs->setText("Dir ambient, diffuse, spec.:");
 	QSlider * dirAmb = createSlider(settingsWidget,
-									1000, 0, 1.0, &this->dirAmbient_, 0, &this->dirChanged_);
+									1000, 0, 1.0, &this->dirAmbient_, 216, &this->dirChanged_);
 	dirAmb->setTickInterval(1000);
 	QSlider * dirDiff = createSlider(settingsWidget,
-									 1000, 0, 2.0, &this->dirDiffuse_, 400, &this->dirChanged_);
+									 1000, 0, 2.0, &this->dirDiffuse_, 120, &this->dirChanged_);
 	dirDiff->setTickInterval(500);
 
 	QSlider * dirSpec = createSlider(settingsWidget,
 									 1000, 0, 2.0, &this->dirSpecular_, 150, &this->dirChanged_);
 	dirSpec->setTickInterval(500);
+
+
 
 
 	auto morphLabel = new QLabel(settingsWidget);
@@ -358,6 +360,12 @@ void Window::onInit()
 	chessInstance_.transform_.scale(6.0);
 	chess_.setShaderProgram(chessProgram_);
 	chess_.loadFromGLTF(":/Models/chess_2.glb");
+
+	tumbleweedInstance_.transform_.setToIdentity();
+	tumbleweedInstance_.transform_.translate(0.0, 1.8, 0.0);
+	tumbleweedInstance_.transform_.scale(0.001);
+	tumbleweed_.setShaderProgram(chessProgram_);
+	tumbleweed_.loadFromGLTF(":/Models/tumbleweed.glb");
 
 	morphProgram_ = std::make_shared<QOpenGLShaderProgram>();
 	morphProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/pointBlowout.vert");
@@ -693,6 +701,7 @@ void Window::onRender()
 
 	// Rendering other models
 	chess_.render(camera_, {&chessInstance_});
+	tumbleweed_.render(camera_, {&tumbleweedInstance_});
 
 	morphProgram_->bind();
 	morphProgram_->setUniformValue(blowOutPointUniform_, morphPointModel_);

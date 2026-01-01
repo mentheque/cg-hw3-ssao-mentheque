@@ -83,6 +83,8 @@ private:
 	Instance chessInstance_;
 	std::shared_ptr<QOpenGLShaderProgram> chessProgram_;
 
+	Model tumbleweed_;
+	Instance tumbleweedInstance_;
 private:
 	LightUBOManager<__DIRECTIONAL_COUNT__, __SPOT_COUNT__> lightUBO_;
 	float lightRotationCouner_ = 0.0;
