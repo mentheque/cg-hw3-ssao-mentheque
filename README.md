@@ -5,6 +5,7 @@
 Deferred shading pipeline and ssao implemented ontop of https://github.com/mentheque/cg-hw2-morph-mentheque. 
 
 Created from [provided template](https://github.com/sadads1337/mse-gl-hw-template), Build, 3d-party libs and requirements are from there.
+
 Tumbleweed model from https://sketchfab.com/3d-models/tumbleweed-e9fa341c64fe4626b5d5b0052b0c0b64. 
 ![ssao_on](https://github.com/user-attachments/assets/7d00e773-79f8-4eaf-956f-9c2290a7698c)
 ![ssao_off_c](https://github.com/user-attachments/assets/52198bda-8efe-421c-b054-ef91d5601317)
