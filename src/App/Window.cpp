@@ -165,13 +165,13 @@ Window::Window() noexcept
 	QLabel * radiusLabel = new QLabel(settingsWidget);
 	radiusLabel->setText("Kernel radius [0.0, 2.0]");
 	QSlider * radiusSlider = createSlider(settingsWidget,
-									   1000, 0, 2.0, &this->kernelRadius_, 250);
+									   1000, 0, 2.0, &this->kernelRadius_, 28);
 	radiusSlider->setTickInterval(250);
 
 	QLabel * biasLabel = new QLabel(settingsWidget);
 	biasLabel->setText("Depth check bias [0.0, 0.2]");
 	QSlider * biasSlider = createSlider(settingsWidget,
-										  1000, 0, 0.2, &this->bias_, 125);
+										  1000, 0, 0.2, &this->bias_, 33);
 	biasSlider->setTickInterval(250);
 
 	auto applyAOCheck = new QCheckBox("Apply AO", settingsWidget);
@@ -443,27 +443,6 @@ void Window::onInit()
 
 	camera_.setTransforms({3.80794859, 4.15898752, 5.50759220},
 		-0.330000490, 4.08237696);
-
-	//ScreenspacePipeline::Texture
-
-	auto ssSimpleProgram = std::make_shared<QOpenGLShaderProgram>();
-	ssSimpleProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssSimple.vert");
-	ssSimpleProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
-												 ":/Shaders/ssSimple.frag");
-
-	ssSimpleProgram->bind();
-	auto simpleColorUniform = ssSimpleProgram->uniformLocation("colorTex");
-	ssSimpleProgram->release();
-
-	auto ssDepthProgram = std::make_shared<QOpenGLShaderProgram>();
-	ssDepthProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssSimple.vert");
-	ssDepthProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
-											 ":/Shaders/ssDepthReading.frag");
-
-	auto ssNormalProgram = std::make_shared<QOpenGLShaderProgram>();
-	ssNormalProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssSimple.vert");
-	ssNormalProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
-											":/Shaders/ssNormal.frag");
 
 	auto ssLightingProgram = std::make_shared<QOpenGLShaderProgram>();
 	ssLightingProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssLighting.vert");
